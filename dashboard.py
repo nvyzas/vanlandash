@@ -41,12 +41,6 @@ app.layout=html.Div([
 
 
 # Define callbacks
-@app.callback(
-    Output('output-text','children'),
-    [Input('dropdown','value')])
-def multiply(list_of_two):
-    # print(list_of_two)
-    return list_of_two
 
 @app.callback(
     Output('timegraph','figure'),
@@ -111,14 +105,6 @@ def update_freqgraph(key):
     
     return {'data':data,'layout':layout}
 
-# Debugging    
-"""
-df=pd.read_csv('data/data_preprocessed.csv')
-unique_accounts=df['a_key'].unique().tolist()
-key=unique_accounts[0]
-df_key=df[(df['a_key']==key) | (df['b_key']==key)].sort_values('date_tech')
-"""    
-    
 # Add the server clause:
 if __name__ == '__main__':
     app.run_server()

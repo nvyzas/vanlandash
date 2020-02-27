@@ -12,9 +12,10 @@ import plotly.graph_objs as go
 import numpy as np
 import pandas as pd
 
-df=pd.read_pickle('data/data_preprocessed.pkl')
+df=pd.read_csv('data/data_preprocessed.csv')
+df['date_tech'] = pd.to_datetime(df['date_tech']).dt.date
 
-unique_accounts=df['a_key'].unique().to_numpy().tolist()
+unique_accounts=df['a_key'].unique().tolist()
 unique_accounts.sort()
 
 # Launch the application:
@@ -112,8 +113,8 @@ def update_freqgraph(key):
 
 # Debugging    
 """
-df=pd.read_pickle('data/data_preprocessed.pkl')
-unique_accounts=df['a_key'].unique().to_numpy().tolist()
+df=pd.read_csv('data/data_preprocessed.csv')
+unique_accounts=df['a_key'].unique().tolist()
 key=unique_accounts[0]
 df_key=df[(df['a_key']==key) | (df['b_key']==key)].sort_values('date_tech')
 """    

@@ -21,6 +21,7 @@ unique_accounts.sort()
 # Launch the application:
 app = dash.Dash()
 
+"""
 # Set the app layout
 app.layout=html.Div([
     dcc.Dropdown(
@@ -37,9 +38,69 @@ app.layout=html.Div([
     dcc.Graph(
         id='freqgraph'
     )
+    dcc.Graph(
+        id='networkgraph'
+
+    )
  ])
+"""
+######################################################################
 
+app.layout=html.Div([
+    html.Div(
+        className="row",
+        children=[
+            html.Div(
+                className="six columns",
+                children=[
+                    html.Div(
+                        children=dcc.Dropdown(
+                             id='dropdown',
+                             options=[{'label': i, 'value': i} for i in unique_accounts],
+                             value=unique_accounts[0]
+                        )
+                    ),
+                    html.Div(
+                        children=dcc.RangeSlider(
+                            id='my-range-slider',
+                            min=1,
+                            max=12,
+                            step=1,
+                            value=[1, 12],
+                            marks={
+                                1: {'label': 'Jan'},
+                                2: {'label': 'Feb'},
+                                3: {'label': 'March'},
+                                4: {'label': 'April'},
+                                5: {'label': 'May'},
+                                6: {'label': 'JUNE'},
+                                7: {'label': 'JULY'},
+                                8: {'label': 'AUGUST'},
+                                9: {'label': 'SEP'},
+                                10: {'label': 'OCT'},
+                                11: {'label': 'NOV'},
+                                12: {'label': 'DEC'}
+                            }
+                        )
+					)
+                ]
+            ),
+            html.Div(
+                className="six columns",
+                children=html.Div([
+                    dcc.Graph(
+                        id='timegraph'
+                    ),
+                    dcc.Graph(
+                        id='freqgraph'
+                    ),
+                ])
+            )
+        ]
+    )
+])
 
+######################################################################
 # Define callbacks
 
 @app.callback(

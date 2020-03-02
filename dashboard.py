@@ -19,7 +19,7 @@ unique_accounts=df['a_key'].unique().tolist()
 unique_accounts.sort()
 
 # Launch the application:
-app = dash.Dash()
+app = dash.Dash(__name__)
 
 """
 # Set the app layout
@@ -47,20 +47,20 @@ app.layout=html.Div([
 ######################################################################
 
 app.layout=html.Div([
-    html.Div(
-        className="row",
-        children=[
             html.Div(
-                className="six columns",
+                className="row",
                 children=[
                     html.Div(
+                        className="col-4",
                         children=dcc.Dropdown(
                              id='dropdown',
                              options=[{'label': i, 'value': i} for i in unique_accounts],
                              value=unique_accounts[0]
-                        )
+                        ),
+                        
                     ),
                     html.Div(
+                        className="col-8",
                         children=dcc.RangeSlider(
                             id='my-range-slider',
                             min=1,
@@ -82,22 +82,51 @@ app.layout=html.Div([
                                 12: {'label': 'DEC'}
                             }
                         )
-					)
+                    )
                 ]
             ),
             html.Div(
-                className="six columns",
-                children=html.Div([
-                    dcc.Graph(
-                        id='timegraph'
+                className="row",
+                children=[
+                    html.Div(
+                        className='col-6',
+                        children='Network Graph Here'
                     ),
-                    dcc.Graph(
-                        id='freqgraph'
-                    ),
-                ])
+                    html.Div(
+                        className='col-6',
+                        children=[
+                            dcc.Tabs([
+                                dcc.Tab(label='Time', children=[
+                                    dcc.Graph(
+                                        id='timegraph',
+                                        figure={
+                                            'data': [
+                                                {'x': [1, 2, 3], 'y': [4, 1, 2],
+                                                    'type': 'bar', 'name': 'SF'},
+                                                {'x': [1, 2, 3], 'y': [2, 4, 5],
+                                                 'type': 'bar', 'name': u'Montréal'},
+                                            ]
+                                        }
+                                    )
+                                ]),
+                                dcc.Tab(label='Frequency', children=[
+                                    dcc.Graph(
+                                        id='freqgraph',
+                                        figure={
+                                            'data': [
+                                                {'x': [1, 2, 3], 'y': [1, 4, 1],
+                                                    'type': 'bar', 'name': 'SF'},
+                                                {'x': [1, 2, 3], 'y': [1, 2, 3],
+                                                 'type': 'bar', 'name': u'Montréal'},
+                                            ]
+                                        }
+                                    )
+                                ])
+                            ])
+                        ]
+                    )
+                ]
             )
-        ]
-    )
 ])
 
 ######################################################################

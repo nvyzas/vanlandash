@@ -66,6 +66,15 @@ app.layout=html.Div([
                             calendar_orientation='vertical',
                         )  
                     ]
+                )
+            ]
+        ),
+        html.Div(
+            className="row",
+            children=[
+                html.Div(
+                    className='col-6',
+                    children='Network Graph Here'
                 ),
                 html.Div(
                     className='col-6',
@@ -105,15 +114,6 @@ app.layout=html.Div([
                             ])
                         ])
                     ]
-                )
-            ]
-        ),
-        html.Div(
-            className="row",
-            children=[
-                html.Div(
-                    className='col-6',
-                    children='Network Graph Here'
                 )
             ]
         )

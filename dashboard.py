@@ -52,6 +52,7 @@ def _is_close(d1, d2, atolerance=0, rtolerance=0):
     if not isinstance(d1, dict) and not isinstance(d2, dict):
         return abs(d1 - d2) <= atolerance + rtolerance * abs(d2)
     return all(all(_is_close(d1[u][v], d2[u][v]) for v in d1[u]) for u in d1)
+
 def unique(list1): 
     
     # intilize a null list 
@@ -63,6 +64,7 @@ def unique(list1):
         if x not in unique_list: 
             unique_list.append(x) 
     return  unique_list
+
 def precssr(list1):
     res=[x[0] for x in unique(list1)]
     return res
@@ -118,9 +120,9 @@ app.layout=html.Div([
                 html.Div(
                     className="col-1",
                     children=[
-                        dcc.Dropdown(
-                         id='dropdown',
-                         options=[{'label': i, 'value': i} for i in unique_accounts],
+                        dcc.Input(
+                         id='input_1',
+                         type='text',
                          value=unique_accounts[7]
                          )
                     ]                        
@@ -132,11 +134,9 @@ app.layout=html.Div([
                 html.Div(
                     className="col-1",
                     children=[
-                        dcc.Dropdown(
-                         id='dropdown_2',
-                         options=[{'label': i, 'value': i} for i in unique_accounts],
-                         value=unique_accounts[0],
-                         
+                        dcc.Input(
+                         id='input_2',
+                         type='text',                        
                          )
                     ]                        
                 ),
@@ -145,10 +145,6 @@ app.layout=html.Div([
                     children=[
                         dcc.DatePickerRange(
                             id='datepicker',
-                            min_date_allowed=min_date,
-                            max_date_allowed=max_date,
-                            start_date=min_date,
-                            end_date=min_date,
                             display_format='DD MM YYYY',
                             start_date_placeholder_text="Start Date",
                             end_date_placeholder_text="End Date",
@@ -206,14 +202,16 @@ app.layout=html.Div([
 
 
 # Define callbacks
-##################################### network callback ##################################
-##################################### network callback ##################################
-@app.callback(Output('mapx','srcDoc'), 
-    [Input('dropdown','value'),
-     Input('dropdown_2','value'),
-     Input('datepicker','start_date'),
-     Input('datepicker','end_date')])
-def update_output_div(Account_1,Account_2,start_date,end_date):
+##################################### Network callback ##################################
+@app.callback(
+    Output('mapx','srcDoc'), 
+    [Input('submit-button','n_clicks')],
+    [State('input_1','value'),
+     State('input_2','value'),
+     State('datepicker','start_date'),
+     State('datepicker','end_date')]
+    )
+def update_network(n_clicks,Account_1,Account_2,start_date,end_date):
     bank_data = df.copy()
     sd=datetime.strptime(start_date.split(' ')[0],'%Y-%m-%d').date()
     ed=datetime.strptime(end_date.split(' ')[0],'%Y-%m-%d').date()
@@ -302,12 +300,14 @@ var options = {
 ##############################similarity function######################################
 ###Similarity of two Nodes based on Outgoing and Incoming edges
 from itertools import product
-@app.callback(Output('textArea','children'), 
-    [Input('dropdown','value'),
-     Input('dropdown_2','value'),
-     Input('datepicker','start_date'),
-     Input('datepicker','end_date')])
-def update_output_div_similarity(Account_1,Account_2,start_date,end_date):
+@app.callback(Output('textArea','children'),
+              [Input('submit-button','n_clicks')],
+              [State('input_1','value'),
+               State('input_2','value'),
+               State('datepicker','start_date'),
+               State('datepicker','end_date')]
+              )
+def update_output_div_similarity(n_clicks,Account_1,Account_2,start_date,end_date):
     bank_data = df.copy()
     sd=datetime.strptime(start_date.split(' ')[0],'%Y-%m-%d').date()
     ed=datetime.strptime(end_date.split(' ')[0],'%Y-%m-%d').date()
@@ -339,14 +339,13 @@ def update_output_div_similarity(Account_1,Account_2,start_date,end_date):
     return sim1_2
 ####################################freq-time callbacks################################
 @app.callback(
-    [Output('dummy','children'),
-     Output('dropdown_2','options'),
-     Output('dropdown_2','value'),
+    [Output('input_2','value'),
      Output('datepicker','min_date_allowed'),
      Output('datepicker','max_date_allowed'),
      Output('datepicker','start_date'),
-     Output('datepicker','end_date')],
-    [Input('dropdown','value')])
+     Output('datepicker','end_date'),
+     Output('datepicker','initial_visible_month')],
+    [Input('input_1','value')])
 def update_user_input_components(key):
     print('Updating user input components')
     
@@ -354,25 +353,21 @@ def update_user_input_components(key):
     accounts_filtered=df_filtered['a_key'].append(df_filtered['b_key'],ignore_index=True)
     unique_accounts_filtered=accounts_filtered.unique()
     unique_accounts_filtered_without_key=np.delete(unique_accounts_filtered,np.where(unique_accounts_filtered==key))
-    
-    options=[{'label': i, 'value': i} for i in unique_accounts_filtered_without_key]
-    
-    value = unique_accounts_filtered_without_key[0]
+      
+    key_2 = unique_accounts_filtered_without_key[0]
     
     min_date_filtered=df_filtered['datee'].min()
     max_date_filtered=df_filtered['datee'].max()
     
     print('Done updating user input components')
-    return key,options,value,min_date_filtered,max_date_filtered,min_date_filtered,min_date_filtered
-
-
+    return key_2,min_date_filtered,max_date_filtered,min_date_filtered,min_date_filtered,min_date_filtered
 
 @app.callback(
     [Output('timegraph','figure'),
      Output('freqgraph','figure')],
     [Input('submit-button', 'n_clicks')],
-    [State('dummy','children'),
-     State('dropdown_2','value'),
+    [State('input_1','value'),
+     State('input_2','value'),
      State('datepicker','start_date'),
      State('datepicker','end_date')])
 def update_graphs(n_clicks,key,key_2,start_date,end_date):

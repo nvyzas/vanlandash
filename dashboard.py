@@ -6,7 +6,7 @@
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
-from dash.dependencies import Input, Output
+from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate
 
 import plotly.graph_objs as go
@@ -48,9 +48,13 @@ app.layout=html.Div([
                         dcc.Dropdown(
                          id='dropdown',
                          options=[{'label': i, 'value': i} for i in unique_accounts],
-                         value=unique_accounts[3]
+                         value=unique_accounts[7]
                          )
                     ]                        
+                ),
+                html.Div(
+                    id='dummy',
+                    style={'display': 'none'}
                 ),
                 html.Div(
                     className="col-1",
@@ -64,7 +68,6 @@ app.layout=html.Div([
                 ),
                 html.Div(
                     className="col-2",
-                    id='datepicker_div',
                     children=[
                         dcc.DatePickerRange(
                             id='datepicker',
@@ -73,6 +76,16 @@ app.layout=html.Div([
                             end_date_placeholder_text="End Date",
                             calendar_orientation='vertical',
                         )  
+                    ]
+                ),
+                html.Div(
+                    className="col-2",
+                    children=[
+                        html.Button(
+                        id='submit-button',
+                        children='Submit',
+                        n_clicks=0
+                        )
                     ]
                 )
             ]
@@ -109,9 +122,13 @@ app.layout=html.Div([
 # Define callbacks
 
 @app.callback(
-    [Output('dropdown_2','options'),
+    [Output('dummy','children'),
+     Output('dropdown_2','options'),
      Output('dropdown_2','value'),
-     Output('datepicker_div', 'children')],
+     Output('datepicker','min_date_allowed'),
+     Output('datepicker','max_date_allowed'),
+     Output('datepicker','start_date'),
+     Output('datepicker','end_date')],
     [Input('dropdown','value')])
 def update_user_input_components(key):
     print('Updating user input components')
@@ -127,32 +144,31 @@ def update_user_input_components(key):
     
     min_date_filtered=df_filtered['datee'].min()
     max_date_filtered=df_filtered['datee'].max()
-    datepicker=dcc.DatePickerRange(
-        id='datepicker',
-        min_date_allowed=min_date_filtered,
-        max_date_allowed=max_date_filtered,
-        start_date=min_date_filtered,
-        end_date=max_date_filtered,
-    )
+
     
     print('Done updating user input components')
-    return options,value,datepicker
+    return key,options,value,min_date_filtered,max_date_filtered,min_date_filtered,max_date_filtered
 
 
 
 @app.callback(
-    Output('timegraph','figure'),
-    [Input('dropdown','value'),
-     Input('dropdown_2','value'),
-     Input('datepicker','start_date'),
-     Input('datepicker','end_date')])
-def update_timegraphs(key,key_2,start_date,end_date):
+    [Output('timegraph','figure'),
+     Output('freqgraph','figure')],
+    [Input('submit-button', 'n_clicks')],
+    [State('dummy','children'),
+     State('dropdown_2','value'),
+     State('datepicker','start_date'),
+     State('datepicker','end_date')])
+def update_timegraphs(n_clicks,key,key_2,start_date,end_date):
     print('Updating timegraphs')
     
     # if (not key or not key_2 or not start_date or not end_date): return
-    if key is None or key_2 is None or start_date is None or end_date is None:
+    if ((key is None) or (key_2 is None) or (start_date is None) or (end_date is None)):
+        print('Preventing Update')
         raise PreventUpdate
     else:
+        # Calculate necessary variables
+        
         sd=datetime.strptime(start_date.split(' ')[0],'%Y-%m-%d').date()
         ed=datetime.strptime(end_date.split(' ')[0],'%Y-%m-%d').date()
     
@@ -163,6 +179,12 @@ def update_timegraphs(key,key_2,start_date,end_date):
         df_key['cum_amount']=df_key['boeking_eur'].cumsum()
         df_key_2['cum_amount']=df_key_2['boeking_eur'].cumsum()
         df_key_12['cum_amount']=df_key_2['boeking_eur'].cumsum()
+        
+        intervals=(df_key['datee']-df_key['datee'].shift(1)).dropna().apply(lambda x: x.days)
+        intervals_2=(df_key_2['datee']-df_key_2['datee'].shift(1)).dropna().apply(lambda x: x.days)
+        intervals_12=(df_key_12['datee']-df_key_12['datee'].shift(1)).dropna().apply(lambda x: x.days)
+        
+        # Update time graphs
         
         fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.02)
         
@@ -276,40 +298,13 @@ def update_timegraphs(key,key_2,start_date,end_date):
             hovermode='closest'
         )
         
-        print('Done updating timegraphs')
-        return fig
-
-
-@app.callback(
-    Output('freqgraph','figure'),
-    [Input('dropdown','value'),
-     Input('dropdown_2','value'),
-     Input('datepicker','start_date'),
-     Input('datepicker','end_date')])
-def update_freqgraphs(key,key_2,start_date,end_date):
-    print('Updating freqgraphs')
-    
-    # if (not key or not key_2 or not start_date or not end_date): return
-    if key is None or key_2 is None or start_date is None or end_date is None:
-        raise PreventUpdate
-    else:
-        sd=datetime.strptime(start_date.split(' ')[0],'%Y-%m-%d').date()
-        ed=datetime.strptime(end_date.split(' ')[0],'%Y-%m-%d').date()
-    
-        df_key=filter_df(key,sd,ed).sort_values('datee')   
-        df_key_2=filter_df(key_2,sd,ed).sort_values('datee')
-        df_key_12=df_key[(df_key['a_key']==key_2) | (df_key['b_key']==key_2)].sort_values('datee')
-        
-        fig = make_subplots(rows=3, cols=1, vertical_spacing=0.02)
-        
-          
-        intervals=df_key['datee']-df_key['datee'].shift(1)
-        intervals_2=df_key_2['datee']-df_key_2['datee'].shift(1)
-        intervals_12=df_key_12['datee']-df_key_12['datee'].shift(1)
-    
+        # Update frequency graphs
+      
+        fig_freq = make_subplots(rows=3, cols=1, vertical_spacing=0.02)
+         
         # row 1
-        fig.add_trace(go.Histogram(
-                x=intervals.astype('timedelta64[D]'),
+        fig_freq.add_trace(go.Histogram(
+                x=intervals,
                 name='Intervals'
             ),
             row=1,
@@ -317,8 +312,8 @@ def update_freqgraphs(key,key_2,start_date,end_date):
         )
         
         # row 2
-        fig.add_trace(go.Histogram(
-                x=intervals_2.astype('timedelta64[D]'),
+        fig_freq.add_trace(go.Histogram(
+                x=intervals_2,
                 name='Intervals'
             ),
             row=2,
@@ -326,8 +321,8 @@ def update_freqgraphs(key,key_2,start_date,end_date):
         )
         
         # row 3
-        fig.add_trace(go.Histogram(
-                x=intervals_12.astype('timedelta64[D]'),
+        fig_freq.add_trace(go.Histogram(
+                x=intervals_12,
                 name='Intervals'
             ),
             row=3,
@@ -335,15 +330,15 @@ def update_freqgraphs(key,key_2,start_date,end_date):
         )
         
         # Update xaxis properties
-        fig.update_xaxes(title_text="Bins (days)", row=3, col=1)
+        fig_freq.update_xaxes(title_text="Interval (days)", row=3, col=1)
     
         # Update yaxis properties
-        fig.update_yaxes(title_text="Frequency", row=1, col=1)
-        fig.update_yaxes(title_text="Frequency", row=2, col=1)
-        fig.update_yaxes(title_text="Frequency", row=3, col=1)
+        fig_freq.update_yaxes(title_text="Frequency", row=1, col=1)
+        fig_freq.update_yaxes(title_text="Frequency", row=2, col=1)
+        fig_freq.update_yaxes(title_text="Frequency", row=3, col=1)
     
         # Update layout
-        fig.update_layout(
+        fig_freq.update_layout(
             autosize=False,
             width=1000,
             height=1000,
@@ -351,8 +346,9 @@ def update_freqgraphs(key,key_2,start_date,end_date):
             hovermode='closest'
         )
         
-        print('Done updating freqgraphs')
-        return fig
+        print('Done updating graphs')
+        
+        return fig,fig_freq
 
 # Add the server clause:
 if __name__ == '__main__':

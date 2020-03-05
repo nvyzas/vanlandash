@@ -7,13 +7,21 @@ import dash
 import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output
-
+from colour import Color
 import plotly.graph_objs as go
 from plotly.subplots import make_subplots
 
 import numpy as np
 import pandas as pd
 from datetime import datetime
+import networkx as nx
+import pandas as pd
+import matplotlib.pyplot as plt
+import csv
+import pyvis
+#from pyvis.network import Network
+from pyvis import network as net
+
 
 # Import data
 df=pd.read_csv('data/threeMonths.csv')
@@ -33,9 +41,80 @@ def filter_df(acc_key,start_date=min_date,end_date=max_date):
 # Launch the application:
 app = dash.Dash(__name__)
 
+colors = {
+    'background': '#111111',
+    'text': '#7FDBFF'
+}
+######################## Network similarity local functions ###############################
+
+def _is_close(d1, d2, atolerance=0, rtolerance=0):
+        # Pre-condition: d1 and d2 have the same keys at each level if they
+        # are dictionaries.
+    if not isinstance(d1, dict) and not isinstance(d2, dict):
+        return abs(d1 - d2) <= atolerance + rtolerance * abs(d2)
+    return all(all(_is_close(d1[u][v], d2[u][v]) for v in d1[u]) for u in d1)
+def unique(list1): 
+    
+    # intilize a null list 
+    unique_list = [] 
+        
+    # traverse for all elements 
+    for x in list1: 
+        # check if exists in unique_list or not 
+        if x not in unique_list: 
+            unique_list.append(x) 
+    return  unique_list
+def precssr(list1):
+    res=[x[0] for x in unique(list1)]
+    return res
+        
+def simrank_similarity_Incoming(G, source=None, target=None, importance_factor=0.9,
+                        max_iterations=100, tolerance=1e-4):
+    prevsim = None
+        # build up our similarity adjacency dictionary output
+    newsim = {u: {v: 1 if u == v else 0 for v in G} for u in G}
+        # These functions compute the update to the similarity value of the nodes
+        # `u` and `v` with respect to the previous similarity values.
+    avg_sim = lambda s: sum(newsim[w][x] for (w, x) in s) / len(s) if s else 0.0
+    sim = lambda u, v: importance_factor * avg_sim(list(product(
+    precssr(list(G.in_edges(u, data=False))),
+    precssr(list(G.in_edges(v, data=False)))
+    )))
+    for _ in range(max_iterations):
+        if prevsim and _is_close(prevsim, newsim, tolerance):
+            break
+        prevsim = newsim
+        newsim = {u: {v: sim(u, v) if u is not v else 1
+                    for v in newsim[u]} for u in newsim}
+    if source is not None and target is not None:
+        return newsim[source][target]
+    if source is not None:
+        return newsim[source]
+    return newsim
+#similarities between nodes
+
+def sim_outgoing_two_nodes(sim_dict,a,b):
+    return sim_dict[a][b]
+def sim_incoming_two_nodes(sim_dict,a,b):
+    return sim_dict[a][b]
+
+
+###########################################################################################
 
 # Set the app layout
 app.layout=html.Div([
+    html.Div(
+                    className="col-3",
+                    id='heading',
+                    children=[
+                        html.H1(children='Van Lanschot Bank', 
+                        style={
+                        'textAlign': 'right',
+                        'color': colors['text']
+        })
+                        
+                    ]
+                ),
         html.Div(
             className="row",
             children=[
@@ -55,12 +134,13 @@ app.layout=html.Div([
                         dcc.Dropdown(
                          id='dropdown_2',
                          options=[{'label': i, 'value': i} for i in unique_accounts],
-                         value=unique_accounts[0]
+                         value=unique_accounts[0],
+                         
                          )
                     ]                        
                 ),
-                html.Div(
-                    className="col-2",
+                 html.Div(
+                    className="col-3",
                     id='datepicker_div',
                     children=[
                         dcc.DatePickerRange(
@@ -68,13 +148,24 @@ app.layout=html.Div([
                             min_date_allowed=min_date,
                             max_date_allowed=max_date,
                             start_date=min_date,
-                            end_date=max_date,
+                            end_date=min_date,
                             display_format='DD MM YYYY',
                             start_date_placeholder_text="Start Date",
                             end_date_placeholder_text="End Date",
                             calendar_orientation='vertical',
-                        )  
+                                                    )  
                     ]
+                ),
+                html.Div(
+                    className="col-3",
+                    id='textArea',
+                    children=[  
+                        dcc.Textarea(
+                        placeholder='Enter a value...',
+                        value='Similarity',
+                        style={'width': '100%'}
+                        )  
+                            ]
                 )
             ]
         ),
@@ -82,8 +173,7 @@ app.layout=html.Div([
             className="row",
             children=[
                 html.Div(
-                    className='col-6',
-                    children='Network Graph Here'
+                    html.Iframe(id='mapx', width='500', height='550')
                 ),
                 html.Div(
                     className='col-6',
@@ -108,7 +198,138 @@ app.layout=html.Div([
 
 
 # Define callbacks
-
+##################################### network callback ##################################
+##################################### network callback ##################################
+@app.callback(Output('mapx','srcDoc'), 
+    [Input('dropdown','value'),
+     Input('dropdown_2','value'),
+     Input('datepicker','start_date'),
+     Input('datepicker','end_date')])
+def update_output_div(Account_1,Account_2,start_date,end_date):
+    bank_data = df.copy()
+    sd=datetime.strptime(start_date.split(' ')[0],'%Y-%m-%d').date()
+    ed=datetime.strptime(end_date.split(' ')[0],'%Y-%m-%d').date()
+    granular_bank_data=bank_data[(bank_data['datee'] >= sd) & (bank_data['datee'] <= ed)]
+    sent_bank=granular_bank_data[granular_bank_data['originn']==Account_1]
+    recieved_bank=granular_bank_data[granular_bank_data['dest']==Account_1]
+    tot_bank=pd.concat([sent_bank,recieved_bank])
+    
+    edges = pd.DataFrame({'source': tot_bank['originn'],'target':tot_bank['dest']
+                          ,'weight': tot_bank['amount']
+                          ,'color': ['g' if x<=200 else 'r' for x in tot_bank['amount']]
+                         })
+    adj_data = tot_bank
+    if Account_1 != Account_2:
+        a=granular_bank_data[granular_bank_data['originn']==Account_2]
+        b=granular_bank_data[granular_bank_data['dest']==Account_2]
+        adj_data=pd.concat([adj_data,a])
+        adj_data=pd.concat([adj_data,b])
+    
+    two_edges=pd.DataFrame({'source': adj_data['originn'],'target':adj_data['dest']
+                          ,'weight': adj_data['amount']
+                          ,'color': ['green' if x<=100 else 'red' for x in adj_data['amount']]
+                         })
+     
+    G_two_edge = nx.from_pandas_edgelist(two_edges,'source','target', edge_attr=['weight','color'],create_using=nx.MultiDiGraph()) 
+    output_filename='TwoEdge_net_updated.html'
+    # make a pyvis network
+    network_class_parameters = {"notebook": True , "height": "500px", "width":"100%", "bgcolor": None,"font_color": None}
+    pyvis_graph = net.Network(**{parameter_name: parameter_value for parameter_name,
+                                 parameter_value in network_class_parameters.items() if parameter_value}, directed=True) 
+    sources = two_edges['source']
+    targets = two_edges['target']
+    weights = two_edges['weight']
+    color = two_edges['color']
+    edge_data = zip(sources, targets, weights, color)
+    for e in edge_data:
+        src = e[0]
+        dst = e[1]
+        w = e[2]
+        c = e[3]
+        pyvis_graph.add_node(src,title=src)
+        pyvis_graph.add_node(dst,title=dst)
+        pyvis_graph.add_edge(src,dst,value=w,color=c)   
+    #pyvis_graph.show_buttons(filter_=['nodes','edges','physics'])   
+    pyvis_graph.set_options("""
+var options = {
+  "nodes": {
+    "borderWidthSelected": 3,
+    "color": {
+      "border": "rgba(43,124,233,1)",
+      "background": "rgba(109,203,252,1)",
+      "highlight": {
+        "border": "rgba(55,123,233,1)",
+        "background": "rgba(255,248,168,1)"
+      }
+    },
+    "font": {
+      "size": 15,
+      "face": "tahoma"
+    },
+    "size": 17
+  },
+  "edges": {
+    "arrowStrikethrough": false,
+    "color": {
+      "inherit": true
+    },
+    "smooth": {
+      "forceDirection": "none",
+      "roundness": 0.35
+    }
+  },
+  "physics": {
+    "forceAtlas2Based": {
+      "springLength": 100,
+      "avoidOverlap": 1
+    },
+    "minVelocity": 0.75,
+    "solver": "forceAtlas2Based",
+    "timestep": 0.49
+  }
+}
+""")
+    pyvis_graph.save_graph(output_filename)
+    return open(output_filename, 'r').read()
+##############################similarity function######################################
+###Similarity of two Nodes based on Outgoing and Incoming edges
+from itertools import product
+@app.callback(Output('textArea','children'), 
+    [Input('dropdown','value'),
+     Input('dropdown_2','value'),
+     Input('datepicker','start_date'),
+     Input('datepicker','end_date')])
+def update_output_div_similarity(Account_1,Account_2,start_date,end_date):
+    bank_data = df.copy()
+    sd=datetime.strptime(start_date.split(' ')[0],'%Y-%m-%d').date()
+    ed=datetime.strptime(end_date.split(' ')[0],'%Y-%m-%d').date()
+    granular_bank_data=bank_data[(bank_data['datee'] >= sd) & (bank_data['datee'] <= ed)]
+    sent_bank=granular_bank_data[granular_bank_data['originn']==Account_1]
+    recieved_bank=granular_bank_data[granular_bank_data['dest']==Account_1]
+    tot_bank=pd.concat([sent_bank,recieved_bank])
+    
+    edges = pd.DataFrame({'source': tot_bank['originn'],'target':tot_bank['dest']
+                          ,'weight': tot_bank['amount']
+                          ,'color': ['g' if x<=200 else 'r' for x in tot_bank['amount']]
+                         })
+    adj_data = tot_bank
+    if Account_1 != Account_2:
+        a=granular_bank_data[granular_bank_data['originn']==Account_2]
+        b=granular_bank_data[granular_bank_data['dest']==Account_2]
+        adj_data=pd.concat([adj_data,a])
+        adj_data=pd.concat([adj_data,b])
+    
+    two_edges=pd.DataFrame({'source': adj_data['originn'],'target':adj_data['dest']
+                          ,'weight': adj_data['amount']
+                          ,'color': ['green' if x<=100 else 'red' for x in adj_data['amount']]
+                         })
+    G_two_edge = nx.from_pandas_edgelist(two_edges,'source','target', edge_attr=['weight','color'],create_using=nx.MultiDiGraph()) 
+    sim_outgoing = nx.simrank_similarity(G_two_edge)
+    sim_incoming = simrank_similarity_Incoming(G_two_edge)
+   
+    sim1_2=str(sim_outgoing_two_nodes(sim_outgoing,Account_1,Account_2))+" "+str((sim_incoming_two_nodes(sim_incoming,Account_1,Account_2)))
+    return sim1_2
+####################################freq-time callbacks################################
 @app.callback(
     [Output('dropdown_2','options'),Output('datepicker_div', 'children')],
     [Input('dropdown','value')])
@@ -124,7 +345,7 @@ def update_user_input_components(account_key):
         min_date_allowed=min_date_filtered,
         max_date_allowed=max_date_filtered,
         start_date=min_date_filtered,
-        end_date=max_date_filtered,
+        end_date=min_date_filtered,
         display_format='DD MM YYYY',
         start_date_placeholder_text="Start Date",
         end_date_placeholder_text="End Date",

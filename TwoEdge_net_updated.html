@@ -1,0 +1,77 @@
+<html>
+<head>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/vis/4.16.1/vis.css" type="text/css" />
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.16.1/vis-network.min.js"> </script>
+
+<!-- <link rel="stylesheet" href="../node_modules/vis/dist/vis.min.css" type="text/css" />
+<script type="text/javascript" src="../node_modules/vis/dist/vis.js"> </script>-->
+
+<style type="text/css">
+
+        #mynetwork {
+            width: 100%;
+            height: 500px;
+            background-color: #ffffff;
+            border: 1px solid lightgray;
+            position: relative;
+            float: left;
+        }
+
+        
+
+        
+
+        
+</style>
+
+</head>
+
+<body>
+<div id = "mynetwork"></div>
+
+
+<script type="text/javascript">
+
+    // initialize global variables.
+    var edges;
+    var nodes;
+    var network; 
+    var container;
+    var options, data;
+
+    
+    // This method is responsible for drawing the graph, returns the drawn network
+    function drawGraph() {
+        var container = document.getElementById('mynetwork');
+        
+        
+
+        // parsing and collecting nodes and edges from the python
+        nodes = new vis.DataSet([{"id": "A1", "label": "A1", "shape": "dot", "title": "A1"}, {"id": "B147314", "label": "B147314", "shape": "dot", "title": "B147314"}, {"id": "B333560", "label": "B333560", "shape": "dot", "title": "B333560"}, {"id": "B207648", "label": "B207648", "shape": "dot", "title": "B207648"}, {"id": "B226746", "label": "B226746", "shape": "dot", "title": "B226746"}, {"id": "B298208", "label": "B298208", "shape": "dot", "title": "B298208"}, {"id": "B99648", "label": "B99648", "shape": "dot", "title": "B99648"}, {"id": "B349246", "label": "B349246", "shape": "dot", "title": "B349246"}, {"id": "A62022", "label": "A62022", "shape": "dot", "title": "A62022"}, {"id": "A34289", "label": "A34289", "shape": "dot", "title": "A34289"}, {"id": "A31255", "label": "A31255", "shape": "dot", "title": "A31255"}, {"id": "A16332", "label": "A16332", "shape": "dot", "title": "A16332"}, {"id": "A54150", "label": "A54150", "shape": "dot", "title": "A54150"}, {"id": "A41637", "label": "A41637", "shape": "dot", "title": "A41637"}]);
+        edges = new vis.DataSet([{"arrows": "to", "color": "red", "from": "A1", "to": "B147314", "value": 105.83}, {"arrows": "to", "color": "green", "from": "A1", "to": "B333560", "value": 99.8}, {"arrows": "to", "color": "red", "from": "A1", "to": "B207648", "value": 787.45}, {"arrows": "to", "color": "green", "from": "B226746", "to": "A1", "value": 26.0}, {"arrows": "to", "color": "green", "from": "B298208", "to": "A1", "value": 13.75}, {"arrows": "to", "color": "red", "from": "B99648", "to": "A1", "value": 214.0}, {"arrows": "to", "color": "green", "from": "B349246", "to": "A1", "value": 12.25}, {"arrows": "to", "color": "red", "from": "A62022", "to": "B333560", "value": 121.82}, {"arrows": "to", "color": "red", "from": "A34289", "to": "B333560", "value": 152.56}, {"arrows": "to", "color": "green", "from": "A1", "to": "B333560", "value": 99.8}, {"arrows": "to", "color": "red", "from": "A31255", "to": "B333560", "value": 100.27}, {"arrows": "to", "color": "red", "from": "A16332", "to": "B333560", "value": 299.04}, {"arrows": "to", "color": "red", "from": "A54150", "to": "B333560", "value": 643.31}, {"arrows": "to", "color": "green", "from": "A41637", "to": "B333560", "value": 50.99}]);
+
+        // adding nodes and edges to the graph
+        data = {nodes: nodes, edges: edges};
+
+        var options = {"nodes": {"borderWidthSelected": 3, "color": {"border": "rgba(43,124,233,1)", "background": "rgba(109,203,252,1)", "highlight": {"border": "rgba(55,123,233,1)", "background": "rgba(255,248,168,1)"}}, "font": {"size": 15, "face": "tahoma"}, "size": 17}, "edges": {"arrowStrikethrough": false, "color": {"inherit": true}, "smooth": {"forceDirection": "none", "roundness": 0.35}}, "physics": {"forceAtlas2Based": {"springLength": 100, "avoidOverlap": 1}, "minVelocity": 0.75, "solver": "forceAtlas2Based", "timestep": 0.49}};
+        
+        
+
+        
+
+        network = new vis.Network(container, data, options);
+
+        
+
+
+        
+
+        return network;
+
+    }
+
+    drawGraph();
+
+</script>
+</body>
+</html>

@@ -6,17 +6,10 @@
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
-<<<<<<< HEAD
-from dash.dependencies import Input, Output
-from colour import Color
-=======
 from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate
-
->>>>>>> df04e561b0e68ae65b5291ef3186c7bb45bb1369
 import plotly.graph_objs as go
 from plotly.subplots import make_subplots
-
 import numpy as np
 import pandas as pd
 from datetime import datetime
@@ -27,7 +20,7 @@ import csv
 import pyvis
 #from pyvis.network import Network
 from pyvis import network as net
-
+from colour import Color
 
 # Import data
 df=pd.read_csv('data/threeMonths.csv')
@@ -112,17 +105,15 @@ def sim_incoming_two_nodes(sim_dict,a,b):
 # Set the app layout
 app.layout=html.Div([
     html.Div(
-                    className="col-3",
-                    id='heading',
-                    children=[
-                        html.H1(children='Van Lanschot Bank', 
-                        style={
-                        'textAlign': 'right',
-                        'color': colors['text']
-        })
-                        
-                    ]
-                ),
+            className="col-3",
+            id='heading',
+            children=[
+                html.H1(children='Van Lanschot Bank', 
+                style={
+                'textAlign': 'right',
+                'color': colors['text']
+                })
+            ]),
         html.Div(
             className="row",
             children=[
@@ -145,16 +136,14 @@ app.layout=html.Div([
                     children=[
                         dcc.Dropdown(
                          id='dropdown_2',
-<<<<<<< HEAD
                          options=[{'label': i, 'value': i} for i in unique_accounts],
                          value=unique_accounts[0],
                          
                          )
                     ]                        
                 ),
-                 html.Div(
+                html.Div(
                     className="col-3",
-                    id='datepicker_div',
                     children=[
                         dcc.DatePickerRange(
                             id='datepicker',
@@ -162,18 +151,6 @@ app.layout=html.Div([
                             max_date_allowed=max_date,
                             start_date=min_date,
                             end_date=min_date,
-=======
-                         # options=[{'label': i, 'value': i} for i in unique_accounts],
-                         # value=unique_accounts[3]
-                         )
-                    ]                        
-                ),
-                html.Div(
-                    className="col-2",
-                    children=[
-                        dcc.DatePickerRange(
-                            id='datepicker',
->>>>>>> df04e561b0e68ae65b5291ef3186c7bb45bb1369
                             display_format='DD MM YYYY',
                             start_date_placeholder_text="Start Date",
                             end_date_placeholder_text="End Date",
@@ -182,7 +159,6 @@ app.layout=html.Div([
                     ]
                 ),
                 html.Div(
-<<<<<<< HEAD
                     className="col-3",
                     id='textArea',
                     children=[  
@@ -191,8 +167,8 @@ app.layout=html.Div([
                         value='Similarity',
                         style={'width': '100%'}
                         )  
-                            ]
-=======
+                    ]),
+                html.Div(
                     className="col-2",
                     children=[
                         html.Button(
@@ -200,9 +176,7 @@ app.layout=html.Div([
                         children='Submit',
                         n_clicks=0
                         )
-                    ]
->>>>>>> df04e561b0e68ae65b5291ef3186c7bb45bb1369
-                )
+                    ])
             ]
         ),
         html.Div(
@@ -389,24 +363,9 @@ def update_user_input_components(key):
     
     min_date_filtered=df_filtered['datee'].min()
     max_date_filtered=df_filtered['datee'].max()
-<<<<<<< HEAD
-    datepicker=dcc.DatePickerRange(
-        id='datepicker',
-        min_date_allowed=min_date_filtered,
-        max_date_allowed=max_date_filtered,
-        start_date=min_date_filtered,
-        end_date=min_date_filtered,
-        display_format='DD MM YYYY',
-        start_date_placeholder_text="Start Date",
-        end_date_placeholder_text="End Date",
-        calendar_orientation='vertical',
-    )
-=======
-
->>>>>>> df04e561b0e68ae65b5291ef3186c7bb45bb1369
     
     print('Done updating user input components')
-    return key,options,value,min_date_filtered,max_date_filtered,min_date_filtered,max_date_filtered
+    return key,options,value,min_date_filtered,max_date_filtered,min_date_filtered,min_date_filtered
 
 
 

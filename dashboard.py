@@ -375,7 +375,7 @@ def update_user_input_components(key):
      State('dropdown_2','value'),
      State('datepicker','start_date'),
      State('datepicker','end_date')])
-def update_timegraphs(n_clicks,key,key_2,start_date,end_date):
+def update_graphs(n_clicks,key,key_2,start_date,end_date):
     print('Updating timegraphs')
     
     # if (not key or not key_2 or not start_date or not end_date): return
@@ -510,7 +510,7 @@ def update_timegraphs(n_clicks,key,key_2,start_date,end_date):
             autosize=False,
             width=1000,
             height=1000,
-            margin={'l': 0, 'b': 0, 't': 0, 'r': 0},
+            margin={'l': 10, 'b': 10, 't': 0, 'r': 0},
             hovermode='closest'
         )
         
@@ -558,7 +558,7 @@ def update_timegraphs(n_clicks,key,key_2,start_date,end_date):
             autosize=False,
             width=1000,
             height=1000,
-            margin={'l': 0, 'b': 0, 't': 0, 'r': 0},
+            margin={'l': 10, 'b': 10, 't': 0, 'r': 0},
             hovermode='closest'
         )
         

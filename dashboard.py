@@ -1,26 +1,24 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-
 # Perform imports here:
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate
+
 import plotly.graph_objs as go
 from plotly.subplots import make_subplots
+
 import numpy as np
 import pandas as pd
+
 from datetime import datetime
+
 import networkx as nx
-import pandas as pd
-import matplotlib.pyplot as plt
-import csv
-import pyvis
-#from pyvis.network import Network
 from pyvis import network as net
-from colour import Color
+
 
 # Import data
 df=pd.read_csv('data/threeMonths.csv')

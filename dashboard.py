@@ -128,10 +128,6 @@ app.layout=html.Div([
                     ]                        
                 ),
                 html.Div(
-                    id='dummy',
-                    style={'display': 'none'}
-                ),
-                html.Div(
                     className="col-1",
                     children=[
                         dcc.Input(
@@ -177,7 +173,8 @@ app.layout=html.Div([
             className="row",
             children=[
                 html.Div(
-                    html.Iframe(id='mapx', width='500', height='550')
+                    html.Iframe(id='mapx', width='100%', height='100%'),
+                    className="col-6"
                 ),
                 html.Div(
                     className='col-6',
@@ -239,7 +236,7 @@ def update_network(n_clicks,Account_1,Account_2,start_date,end_date):
     G_two_edge = nx.from_pandas_edgelist(two_edges,'source','target', edge_attr=['weight','color'],create_using=nx.MultiDiGraph()) 
     output_filename='TwoEdge_net_updated.html'
     # make a pyvis network
-    network_class_parameters = {"notebook": True , "height": "500px", "width":"100%", "bgcolor": None,"font_color": None}
+    network_class_parameters = {"notebook": True, "height": "98vh", "width":"98vw", "bgcolor": None,"font_color": None, "border": 0, "margin": 0, "padding": 0} # 
     pyvis_graph = net.Network(**{parameter_name: parameter_value for parameter_name,
                                  parameter_value in network_class_parameters.items() if parameter_value}, directed=True) 
     sources = two_edges['source']
@@ -503,9 +500,9 @@ def update_graphs(n_clicks,key,key_2,start_date,end_date):
         # Update layout
         fig.update_layout(
             autosize=False,
-            width=1000,
-            height=1000,
-            margin={'l': 10, 'b': 10, 't': 0, 'r': 0},
+            #width=1000,
+            #height=1000,
+            margin={'l': 0, 'b': 0, 't': 0, 'r': 0},
             hovermode='closest'
         )
         
@@ -551,8 +548,8 @@ def update_graphs(n_clicks,key,key_2,start_date,end_date):
         # Update layout
         fig_freq.update_layout(
             autosize=False,
-            width=1000,
-            height=1000,
+            #width=1000,
+            #height=1000,
             margin={'l': 10, 'b': 10, 't': 0, 'r': 0},
             hovermode='closest'
         )

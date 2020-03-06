@@ -20,35 +20,30 @@ import networkx as nx
 from pyvis import network as net
 
 
-# Import data
+### Data import and preprocessing
+
 df=pd.read_csv('data/threeMonths.csv')
 
-# Preprocessing
 df['datee'] = pd.to_datetime(df['datee']).dt.date
 
 print('Finding unique accounts')
 unique_accounts=df['a_key'].append(df['b_key'],ignore_index=True).unique().tolist()
 print('Done')
+
 unique_accounts.sort()
 min_date=df['datee'].min()
 max_date=df['datee'].max()
 
-def filter_df(acc_key,start_date=min_date,end_date=max_date):
+### Utility functions
+
+def filter_df(acc_key, start_date=min_date, end_date=max_date):
     condition=(df['datee']>=start_date) & (df['datee']<=end_date) & ((df['a_key']==acc_key) | (df['b_key']==acc_key))
     return df[condition]
 
-# Launch the application:
-app = dash.Dash(__name__)
-
-colors = {
-    'background': '#111111',
-    'text': '#7FDBFF'
-}
-######################## Network similarity local functions ###############################
+### Network similarity functions
 
 def _is_close(d1, d2, atolerance=0, rtolerance=0):
-        # Pre-condition: d1 and d2 have the same keys at each level if they
-        # are dictionaries.
+    # Pre-condition: d1 and d2 have the same keys at each level if they are dictionaries
     if not isinstance(d1, dict) and not isinstance(d2, dict):
         return abs(d1 - d2) <= atolerance + rtolerance * abs(d2)
     return all(all(_is_close(d1[u][v], d2[u][v]) for v in d1[u]) for u in d1)
@@ -69,8 +64,7 @@ def precssr(list1):
     res=[x[0] for x in unique(list1)]
     return res
         
-def simrank_similarity_Incoming(G, source=None, target=None, importance_factor=0.9,
-                        max_iterations=100, tolerance=1e-4):
+def simrank_similarity_Incoming(G, source=None, target=None, importance_factor=0.9, max_iterations=100, tolerance=1e-4):
     prevsim = None
         # build up our similarity adjacency dictionary output
     newsim = {u: {v: 1 if u == v else 0 for v in G} for u in G}
@@ -92,19 +86,24 @@ def simrank_similarity_Incoming(G, source=None, target=None, importance_factor=0
     if source is not None:
         return newsim[source]
     return newsim
-#similarities between nodes
 
 def sim_outgoing_two_nodes(sim_dict,a,b):
     return sim_dict[a][b]
+
 def sim_incoming_two_nodes(sim_dict,a,b):
     return sim_dict[a][b]
 
+### App Layout
+    
+app = dash.Dash(__name__)
 
-###########################################################################################
+colors = {
+    'background': '#111111',
+    'text': '#7FDBFF'
+}
 
-# Set the app layout
 app.layout=html.Div([
-    html.Div(
+        html.Div(
             className="col-3",
             id='heading',
             children=[
@@ -113,7 +112,8 @@ app.layout=html.Div([
                 'textAlign': 'right',
                 'color': colors['text']
                 })
-            ]),
+            ]
+        ),
         html.Div(
             className="row",
             children=[
@@ -137,27 +137,38 @@ app.layout=html.Div([
                     ]                        
                 ),
                 html.Div(
-                    className="col-3",
+                    className="col-2",
                     children=[
                         dcc.DatePickerRange(
                             id='datepicker',
                             display_format='DD MM YYYY',
                             start_date_placeholder_text="Start Date",
                             end_date_placeholder_text="End Date",
-                            calendar_orientation='vertical',
-                                                    )  
+                            calendar_orientation='horizontal',
+                        )  
                     ]
                 ),
                 html.Div(
-                    className="col-3",
+                    className="col-4",
+                    children=[
+                        dcc.RangeSlider(
+                            id='amount-slider',
+                            step=1, # todo: set this in callback according to slider value
+                        ),
+                        html.Div(id='amount-slider-output')
+                    ]
+                ),
+                html.Div(
+                    className="col-2",
                     id='textArea',
                     children=[  
-                        dcc.Textarea(
-                        placeholder='Enter a value...',
-                        value='Similarity',
-                        style={'width': '100%'}
-                        )  
-                    ]),
+                        dcc.Textarea( # todo: change this into DIV
+                            placeholder='Enter a value...',
+                            value='Similarity',
+                            style={'width': '100%'}
+                        )
+                    ]
+                ),
                 html.Div(
                     className="col-2",
                     children=[
@@ -173,8 +184,14 @@ app.layout=html.Div([
             className="row",
             children=[
                 html.Div(
-                    html.Iframe(id='mapx', width='100%', height='100%'),
-                    className="col-6"
+                    className='col-6',
+                    children=[
+                        html.Iframe(
+                            id='mapx', 
+                            width='100%', 
+                            height='100%'
+                        )
+                    ]
                 ),
                 html.Div(
                     className='col-6',
@@ -198,17 +215,284 @@ app.layout=html.Div([
 ])
 
 
-# Define callbacks
-##################################### Network callback ##################################
+### Callbacks
+
+# Update key_2 based on key_1
+@app.callback(
+    Output('input_2','value'),
+    [Input('input_1','value')])
+def update_key_2(key_1):
+    print('Updating key 2')
+    
+    df_filtered_1=filter_df(key_1)
+    unique_accounts_filtered=df_filtered_1['a_key'].append(df_filtered_1['b_key'],ignore_index=True).unique()
+    unique_accounts_filtered_without_key_1=np.delete(unique_accounts_filtered,np.where(unique_accounts_filtered==key_1))    
+    key_2 = unique_accounts_filtered_without_key_1[0]
+    
+    print('Done updating key 2')
+    return key_2
+
+# Update dates and amounts based on key_1 and key_2
+@app.callback(
+    [Output('datepicker','min_date_allowed'),
+     Output('datepicker','max_date_allowed'),
+     Output('datepicker','start_date'),
+     Output('datepicker','end_date'),
+     Output('datepicker','initial_visible_month'),
+     Output('amount-slider','min'),
+     Output('amount-slider','max'),
+     Output('amount-slider','value')],
+    [Input('input_1','value'),
+     Input('input_2','value')])
+def update_dates_and_amounts(key_1,key_2):
+    print('Updating dates and amounts')
+    
+    if (key_1==None) or (key_2==None):
+        print("Preventing update of dates and amounts")
+        raise PreventUpdate
+        
+    # filter global df according to key_1 and key_2
+    
+    df_filtered_1=filter_df(key_1)
+    df_filtered_2=filter_df(key_2)
+    
+    # calculate min and max dates
+    
+    min_date_1=df_filtered_1['datee'].min()
+    max_date_1=df_filtered_1['datee'].max()
+    
+    min_date_2=df_filtered_2['datee'].min()
+    max_date_2=df_filtered_2['datee'].max()
+    
+    min_date_12=min_date_1 if (min_date_1<=min_date_2) else min_date_2
+    max_date_12=max_date_1 if (max_date_1>=max_date_2) else max_date_2
+    
+    # calculate min and max absolute amounts
+    
+    min_amount_1=df_filtered_1['boeking_eur'].abs().min()
+    max_amount_1=df_filtered_1['boeking_eur'].abs().max()
+    
+    min_amount_2=df_filtered_2['boeking_eur'].abs().min()
+    max_amount_2=df_filtered_2['boeking_eur'].abs().max()
+    
+    min_amount_12=min_amount_1 if min_amount_1<=min_amount_2 else min_amount_2
+    max_amount_12=max_amount_1 if max_amount_1>=max_amount_2 else max_amount_2
+    
+    print('Done updating dates and amounts')
+    return min_date_12,max_date_12,min_date_12,min_date_12,min_date_12,min_amount_12,max_amount_12,[min_amount_12,max_amount_12]
+     
+# Update time and frequency graphs based on all inputs
+@app.callback(
+    [Output('timegraph','figure'),
+     Output('freqgraph','figure')],
+    [Input('submit-button', 'n_clicks')],
+    [State('input_1','value'),
+     State('input_2','value'),
+     State('datepicker','start_date'),
+     State('datepicker','end_date')])
+def update_time_and_frequency_graphs(n_clicks,key,key_2,start_date,end_date):
+    print('Updating graphs')
+    
+    if ((key is None) or (key_2 is None) or (start_date is None) or (end_date is None)):
+        print('Preventing update of time and frequency graphs')
+        raise PreventUpdate
+        
+    # Calculate necessary variables
+    
+    sd=datetime.strptime(start_date.split(' ')[0],'%Y-%m-%d').date()
+    ed=datetime.strptime(end_date.split(' ')[0],'%Y-%m-%d').date()
+    
+    df_key=filter_df(key,sd,ed).sort_values('datee')   
+    df_key_2=filter_df(key_2,sd,ed).sort_values('datee')
+    df_key_12=df_key[(df_key['a_key']==key_2) | (df_key['b_key']==key_2)].sort_values('datee')
+        
+    df_key['cum_amount']=df_key['boeking_eur'].cumsum()
+    df_key_2['cum_amount']=df_key_2['boeking_eur'].cumsum()
+    df_key_12['cum_amount']=df_key_2['boeking_eur'].cumsum()
+    
+    intervals=(df_key['datee']-df_key['datee'].shift(1)).dropna().apply(lambda x: x.days)
+    intervals_2=(df_key_2['datee']-df_key_2['datee'].shift(1)).dropna().apply(lambda x: x.days)
+    intervals_12=(df_key_12['datee']-df_key_12['datee'].shift(1)).dropna().apply(lambda x: x.days)
+    
+    # Update time graphs
+    
+    fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.02)
+    
+    # row 1
+    fig.add_trace(
+        go.Scatter(
+            x=df_key['datee'],
+            y=df_key['boeking_eur'],
+            mode='markers',
+            marker={
+                'size': 10,
+                'opacity': 0.5,
+                'line': {'width': 0.5, 'color': 'white'}
+            },
+            name='Transactions'
+        ),     
+        row=1,
+        col=1
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=df_key['datee'],
+            y=df_key['cum_amount'],
+            mode='markers+lines',
+            marker={
+                'size': 10,
+                'opacity': 0.5,
+                'line': {'width': 0.5, 'color': 'white'}
+            },
+            name='Cumulative Transactions'
+        ),     
+        row=1,
+        col=1
+    )
+    
+    # row 2
+    fig.add_trace(go.Scatter(
+            x=df_key_2['datee'],
+            y=df_key_2['boeking_eur'],
+            mode='markers',
+            marker={
+                'size': 10,
+                'opacity': 0.5,
+                'line': {'width': 0.5, 'color': 'white'}
+            },
+            name='Transactions'
+        ),
+        row=2,
+        col=1
+    )
+    fig.add_trace(go.Scatter(
+            x=df_key_2['datee'],
+            y=df_key_2['cum_amount'],
+            mode='markers+lines',
+            marker={
+                'size': 10,
+                'opacity': 0.5,
+                'line': {'width': 0.5, 'color': 'white'}
+            },
+            name='Cumulative Transactions'
+        ),
+        row=2,
+        col=1
+    )
+    
+    # row 3
+    if (not df_key_12.empty):
+        fig.add_trace(go.Scatter(
+                x=df_key_12['datee'],
+                y=df_key_12['boeking_eur'],
+                mode='markers',
+                marker={
+                    'size': 10,
+                    'opacity': 0.5,
+                    'line': {'width': 0.5, 'color': 'white'}
+                },
+                name='Transactions'
+            ),
+            row=3,
+            col=1
+        )
+        fig.add_trace(go.Scatter(
+                x=df_key_12['datee'],
+                y=df_key_12['cum_amount'],
+                mode='markers+lines',
+                marker={
+                    'size': 10,
+                    'opacity': 0.5,
+                    'line': {'width': 0.5, 'color': 'white'}
+                },
+                name='Cumulative Transactions'
+            ),
+            row=3,
+            col=1
+        )
+    
+    # Update xaxis properties
+    fig.update_xaxes(title_text="Time", row=3, col=1)
+    
+    # Update yaxis properties
+    fig.update_yaxes(title_text="Amount", row=1, col=1)
+    fig.update_yaxes(title_text="Amount", row=2, col=1)
+    fig.update_yaxes(title_text="Amount", row=3, col=1)
+    
+    # Update layout
+    fig.update_layout(
+        autosize=False,
+        # width=800,
+        # height=800,
+        margin={'l': 0, 'b': 0, 't': 0, 'r': 0},
+        hovermode='closest'
+    )
+    
+    # Update frequency graphs
+      
+    fig_freq = make_subplots(rows=3, cols=1, vertical_spacing=0.02)
+     
+    # row 1
+    fig_freq.add_trace(go.Histogram(
+            x=intervals,
+            name='Intervals'
+        ),
+        row=1,
+        col=1
+    )
+    
+    # row 2
+    fig_freq.add_trace(go.Histogram(
+            x=intervals_2,
+            name='Intervals'
+        ),
+        row=2,
+        col=1
+    )
+    
+    # row 3
+    fig_freq.add_trace(go.Histogram(
+            x=intervals_12,
+            name='Intervals'
+        ),
+        row=3,
+        col=1
+    )
+    
+    # Update xaxis properties
+    fig_freq.update_xaxes(title_text="Interval (days)", row=3, col=1)
+    
+    # Update yaxis properties
+    fig_freq.update_yaxes(title_text="Frequency", row=1, col=1)
+    fig_freq.update_yaxes(title_text="Frequency", row=2, col=1)
+    fig_freq.update_yaxes(title_text="Frequency", row=3, col=1)
+    
+    # Update layout
+    fig_freq.update_layout(
+        autosize=False,
+        # width=800,
+        # height=800,
+        margin={'l': 0, 'b': 0, 't': 0, 'r': 0},
+        hovermode='closest'
+    )
+    
+    print('Done updating graphs')       
+    return fig,fig_freq
+
+# Update network based on all inputs
 @app.callback(
     Output('mapx','srcDoc'), 
     [Input('submit-button','n_clicks')],
     [State('input_1','value'),
      State('input_2','value'),
      State('datepicker','start_date'),
-     State('datepicker','end_date')]
-    )
+     State('datepicker','end_date')])
 def update_network(n_clicks,Account_1,Account_2,start_date,end_date):
+    
+    if ((Account_1 is None) or (Account_2 is None) or (start_date is None) or (end_date is None)):
+        print('Preventing update of time and frequency graphs')
+        raise PreventUpdate
+        
     bank_data = df.copy()
     sd=datetime.strptime(start_date.split(' ')[0],'%Y-%m-%d').date()
     ed=datetime.strptime(end_date.split(' ')[0],'%Y-%m-%d').date()
@@ -294,17 +578,21 @@ var options = {
 """)
     pyvis_graph.save_graph(output_filename)
     return open(output_filename, 'r').read()
-##############################similarity function######################################
-###Similarity of two Nodes based on Outgoing and Incoming edges
+
+# Update similarity of key_1 and key_2 based on outgoing and incoming edges
 from itertools import product
 @app.callback(Output('textArea','children'),
               [Input('submit-button','n_clicks')],
               [State('input_1','value'),
                State('input_2','value'),
                State('datepicker','start_date'),
-               State('datepicker','end_date')]
-              )
+               State('datepicker','end_date')])
 def update_output_div_similarity(n_clicks,Account_1,Account_2,start_date,end_date):
+    
+    if ((Account_1 is None) or (Account_2 is None) or (start_date is None) or (end_date is None)):
+        print('Preventing update of time and frequency graphs')
+        raise PreventUpdate
+        
     bank_data = df.copy()
     sd=datetime.strptime(start_date.split(' ')[0],'%Y-%m-%d').date()
     ed=datetime.strptime(end_date.split(' ')[0],'%Y-%m-%d').date()
@@ -334,229 +622,6 @@ def update_output_div_similarity(n_clicks,Account_1,Account_2,start_date,end_dat
    
     sim1_2=str(sim_outgoing_two_nodes(sim_outgoing,Account_1,Account_2))+" "+str((sim_incoming_two_nodes(sim_incoming,Account_1,Account_2)))
     return sim1_2
-####################################freq-time callbacks################################
-@app.callback(
-    [Output('input_2','value'),
-     Output('datepicker','min_date_allowed'),
-     Output('datepicker','max_date_allowed'),
-     Output('datepicker','start_date'),
-     Output('datepicker','end_date'),
-     Output('datepicker','initial_visible_month')],
-    [Input('input_1','value')])
-def update_user_input_components(key):
-    print('Updating user input components')
-    
-    df_filtered=filter_df(key)
-    accounts_filtered=df_filtered['a_key'].append(df_filtered['b_key'],ignore_index=True)
-    unique_accounts_filtered=accounts_filtered.unique()
-    unique_accounts_filtered_without_key=np.delete(unique_accounts_filtered,np.where(unique_accounts_filtered==key))
-      
-    key_2 = unique_accounts_filtered_without_key[0]
-    
-    min_date_filtered=df_filtered['datee'].min()
-    max_date_filtered=df_filtered['datee'].max()
-    
-    print('Done updating user input components')
-    return key_2,min_date_filtered,max_date_filtered,min_date_filtered,min_date_filtered,min_date_filtered
-
-@app.callback(
-    [Output('timegraph','figure'),
-     Output('freqgraph','figure')],
-    [Input('submit-button', 'n_clicks')],
-    [State('input_1','value'),
-     State('input_2','value'),
-     State('datepicker','start_date'),
-     State('datepicker','end_date')])
-def update_graphs(n_clicks,key,key_2,start_date,end_date):
-    print('Updating timegraphs')
-    
-    # if (not key or not key_2 or not start_date or not end_date): return
-    if ((key is None) or (key_2 is None) or (start_date is None) or (end_date is None)):
-        print('Preventing Update')
-        raise PreventUpdate
-    else:
-        # Calculate necessary variables
-        
-        sd=datetime.strptime(start_date.split(' ')[0],'%Y-%m-%d').date()
-        ed=datetime.strptime(end_date.split(' ')[0],'%Y-%m-%d').date()
-    
-        df_key=filter_df(key,sd,ed).sort_values('datee')   
-        df_key_2=filter_df(key_2,sd,ed).sort_values('datee')
-        df_key_12=df_key[(df_key['a_key']==key_2) | (df_key['b_key']==key_2)].sort_values('datee')
-            
-        df_key['cum_amount']=df_key['boeking_eur'].cumsum()
-        df_key_2['cum_amount']=df_key_2['boeking_eur'].cumsum()
-        df_key_12['cum_amount']=df_key_2['boeking_eur'].cumsum()
-        
-        intervals=(df_key['datee']-df_key['datee'].shift(1)).dropna().apply(lambda x: x.days)
-        intervals_2=(df_key_2['datee']-df_key_2['datee'].shift(1)).dropna().apply(lambda x: x.days)
-        intervals_12=(df_key_12['datee']-df_key_12['datee'].shift(1)).dropna().apply(lambda x: x.days)
-        
-        # Update time graphs
-        
-        fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.02)
-        
-        # row 1
-        fig.add_trace(
-            go.Scatter(
-                x=df_key['datee'],
-                y=df_key['boeking_eur'],
-                mode='markers',
-                marker={
-                    'size': 10,
-                    'opacity': 0.5,
-                    'line': {'width': 0.5, 'color': 'white'}
-                },
-                name='Transactions'
-            ),     
-            row=1,
-            col=1
-        )
-        fig.add_trace(
-            go.Scatter(
-                x=df_key['datee'],
-                y=df_key['cum_amount'],
-                mode='markers+lines',
-                marker={
-                    'size': 10,
-                    'opacity': 0.5,
-                    'line': {'width': 0.5, 'color': 'white'}
-                },
-                name='Cumulative Transactions'
-            ),     
-            row=1,
-            col=1
-        )
-    
-        # row 2
-        fig.add_trace(go.Scatter(
-                x=df_key_2['datee'],
-                y=df_key_2['boeking_eur'],
-                mode='markers',
-                marker={
-                    'size': 10,
-                    'opacity': 0.5,
-                    'line': {'width': 0.5, 'color': 'white'}
-                },
-                name='Transactions'
-            ),
-            row=2,
-            col=1
-        )
-        fig.add_trace(go.Scatter(
-                x=df_key_2['datee'],
-                y=df_key_2['cum_amount'],
-                mode='markers+lines',
-                marker={
-                    'size': 10,
-                    'opacity': 0.5,
-                    'line': {'width': 0.5, 'color': 'white'}
-                },
-                name='Cumulative Transactions'
-            ),
-            row=2,
-            col=1
-        )
-        
-        # row 3
-        if (not df_key_12.empty):
-            fig.add_trace(go.Scatter(
-                    x=df_key_12['datee'],
-                    y=df_key_12['boeking_eur'],
-                    mode='markers',
-                    marker={
-                        'size': 10,
-                        'opacity': 0.5,
-                        'line': {'width': 0.5, 'color': 'white'}
-                    },
-                    name='Transactions'
-                ),
-                row=3,
-                col=1
-            )
-            fig.add_trace(go.Scatter(
-                    x=df_key_12['datee'],
-                    y=df_key_12['cum_amount'],
-                    mode='markers+lines',
-                    marker={
-                        'size': 10,
-                        'opacity': 0.5,
-                        'line': {'width': 0.5, 'color': 'white'}
-                    },
-                    name='Cumulative Transactions'
-                ),
-                row=3,
-                col=1
-            )
-        
-        # Update xaxis properties
-        fig.update_xaxes(title_text="Time", row=3, col=1)
-    
-        # Update yaxis properties
-        fig.update_yaxes(title_text="Amount", row=1, col=1)
-        fig.update_yaxes(title_text="Amount", row=2, col=1)
-        fig.update_yaxes(title_text="Amount", row=3, col=1)
-    
-        # Update layout
-        fig.update_layout(
-            autosize=False,
-            #width=1000,
-            #height=1000,
-            margin={'l': 0, 'b': 0, 't': 0, 'r': 0},
-            hovermode='closest'
-        )
-        
-        # Update frequency graphs
-      
-        fig_freq = make_subplots(rows=3, cols=1, vertical_spacing=0.02)
-         
-        # row 1
-        fig_freq.add_trace(go.Histogram(
-                x=intervals,
-                name='Intervals'
-            ),
-            row=1,
-            col=1
-        )
-        
-        # row 2
-        fig_freq.add_trace(go.Histogram(
-                x=intervals_2,
-                name='Intervals'
-            ),
-            row=2,
-            col=1
-        )
-        
-        # row 3
-        fig_freq.add_trace(go.Histogram(
-                x=intervals_12,
-                name='Intervals'
-            ),
-            row=3,
-            col=1
-        )
-        
-        # Update xaxis properties
-        fig_freq.update_xaxes(title_text="Interval (days)", row=3, col=1)
-    
-        # Update yaxis properties
-        fig_freq.update_yaxes(title_text="Frequency", row=1, col=1)
-        fig_freq.update_yaxes(title_text="Frequency", row=2, col=1)
-        fig_freq.update_yaxes(title_text="Frequency", row=3, col=1)
-    
-        # Update layout
-        fig_freq.update_layout(
-            autosize=False,
-            #width=1000,
-            #height=1000,
-            margin={'l': 10, 'b': 10, 't': 0, 'r': 0},
-            hovermode='closest'
-        )
-        
-        print('Done updating graphs')
-        
-        return fig,fig_freq
 
 # Add the server clause:
 if __name__ == '__main__':

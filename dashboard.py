@@ -155,7 +155,19 @@ app.layout=html.Div([
                             id='amount-slider',
                             step=1, # todo: set this in callback according to slider value
                         ),
-                        html.Div(id='amount-slider-output')
+                        html.Div(
+                            className='row',
+                            children=[
+                                html.Div(
+                                    id='amount-slider-min-text',
+                                    style={'width':'50%','textAlign':'left'}
+                                ),
+                                html.Div(
+                                    id='amount-slider-max-text',
+                                    style={'width':'50%','textAlign':'right'}
+                                )
+                            ]
+                        )
                     ]
                 ),
                 html.Div(
@@ -280,7 +292,20 @@ def update_dates_and_amounts(key_1,key_2):
     
     print('Done updating dates and amounts')
     return min_date_12,max_date_12,min_date_12,min_date_12,min_date_12,min_amount_12,max_amount_12,[min_amount_12,max_amount_12]
-     
+
+@app.callback(
+    [Output('amount-slider-min-text','children'),
+     Output('amount-slider-max-text','children')],
+    [Input('amount-slider','value')])
+def update_amount_text(value):
+    
+    if (value==None):
+        print("Preventing update of amounts")
+        raise PreventUpdate
+
+    return 'Min: {}'.format(value[0]),'Max: {}'.format(value[1])
+        
+                
 # Update time and frequency graphs based on all inputs
 @app.callback(
     [Output('timegraph','figure'),

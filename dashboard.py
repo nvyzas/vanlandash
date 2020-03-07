@@ -33,11 +33,20 @@ print('Done')
 unique_accounts.sort()
 min_date=df['datee'].min()
 max_date=df['datee'].max()
+min_abs_amount=df['boeking_eur'].abs().min()
+max_abs_amount=df['boeking_eur'].abs().max()
 
 ### Utility functions
 
-def filter_df(acc_key, start_date=min_date, end_date=max_date):
-    condition=(df['datee']>=start_date) & (df['datee']<=end_date) & ((df['a_key']==acc_key) | (df['b_key']==acc_key))
+def filter_df(key,
+              start_date=min_date,
+              end_date=max_date,
+              start_amount=min_abs_amount,
+              end_amount=max_abs_amount):
+    key_condition=((df['a_key']==key) | (df['b_key']==key))
+    date_condition=(df['datee']>=start_date) & (df['datee']<=end_date)
+    amount_condition=(df['boeking_eur']>=start_amount) & (df['boeking_eur']<=end_amount)
+    condition=key_condition & date_condition & amount_condition
     return df[condition]
 
 ### Network similarity functions
@@ -105,13 +114,14 @@ colors = {
 app.layout=html.Div([
         html.Div(
             className="col-3",
-            id='heading',
             children=[
-                html.H1(children='Van Lanschot Bank', 
-                style={
-                'textAlign': 'right',
-                'color': colors['text']
-                })
+                html.H1(
+                    children='Van Lanschot Bank', 
+                    style={
+                        'textAlign': 'right',
+                        'color': colors['text']
+                    }
+                )
             ]
         ),
         html.Div(
@@ -189,7 +199,8 @@ app.layout=html.Div([
                         children='Submit',
                         n_clicks=0
                         )
-                    ])
+                    ]
+                )
             ]
         ),
         html.Div(
@@ -209,16 +220,22 @@ app.layout=html.Div([
                     className='col-6',
                     children=[
                         dcc.Tabs([
-                            dcc.Tab(label='Time', children=[
-                                dcc.Graph(
-                                    id='timegraph'
-                                )
-                            ]),
-                            dcc.Tab(label='Frequency', children=[
-                                dcc.Graph(
-                                    id='freqgraph'
-                                )
-                            ])
+                            dcc.Tab(
+                                label='Time',
+                                children=[
+                                    dcc.Graph(
+                                        id='timegraph'
+                                    )
+                                ]
+                            ),
+                            dcc.Tab(
+                                label='Frequency', 
+                                children=[
+                                    dcc.Graph(
+                                        id='freqgraph'
+                                    )
+                                ]
+                            )
                         ])
                     ]
                 )
@@ -293,6 +310,7 @@ def update_dates_and_amounts(key_1,key_2):
     print('Done updating dates and amounts')
     return min_date_12,max_date_12,min_date_12,min_date_12,min_date_12,min_amount_12,max_amount_12,[min_amount_12,max_amount_12]
 
+# Update text representing the min and max value of amount slider
 @app.callback(
     [Output('amount-slider-min-text','children'),
      Output('amount-slider-max-text','children')],
@@ -304,8 +322,7 @@ def update_amount_text(value):
         raise PreventUpdate
 
     return 'Min: {}'.format(value[0]),'Max: {}'.format(value[1])
-        
-                
+                        
 # Update time and frequency graphs based on all inputs
 @app.callback(
     [Output('timegraph','figure'),
@@ -314,11 +331,12 @@ def update_amount_text(value):
     [State('input_1','value'),
      State('input_2','value'),
      State('datepicker','start_date'),
-     State('datepicker','end_date')])
-def update_time_and_frequency_graphs(n_clicks,key,key_2,start_date,end_date):
+     State('datepicker','end_date'),
+     State('amount-slider','value')])
+def update_time_and_frequency_graphs(n_clicks,key_1,key_2,start_date,end_date,amount_range):
     print('Updating graphs')
     
-    if ((key is None) or (key_2 is None) or (start_date is None) or (end_date is None)):
+    if ((key_1 is None) or (key_2 is None) or (start_date is None) or (end_date is None)):
         print('Preventing update of time and frequency graphs')
         raise PreventUpdate
         
@@ -327,15 +345,15 @@ def update_time_and_frequency_graphs(n_clicks,key,key_2,start_date,end_date):
     sd=datetime.strptime(start_date.split(' ')[0],'%Y-%m-%d').date()
     ed=datetime.strptime(end_date.split(' ')[0],'%Y-%m-%d').date()
     
-    df_key=filter_df(key,sd,ed).sort_values('datee')   
-    df_key_2=filter_df(key_2,sd,ed).sort_values('datee')
-    df_key_12=df_key[(df_key['a_key']==key_2) | (df_key['b_key']==key_2)].sort_values('datee')
+    df_key_1=filter_df(key_1,sd,ed,amount_range[0],amount_range[1]).sort_values('datee')   
+    df_key_2=filter_df(key_2,sd,ed,amount_range[0],amount_range[1]).sort_values('datee')
+    df_key_12=df_key_1[(df_key_1['a_key']==key_2) | (df_key_1['b_key']==key_2)].sort_values('datee')
         
-    df_key['cum_amount']=df_key['boeking_eur'].cumsum()
+    df_key_1['cum_amount']=df_key_1['boeking_eur'].cumsum()
     df_key_2['cum_amount']=df_key_2['boeking_eur'].cumsum()
     df_key_12['cum_amount']=df_key_2['boeking_eur'].cumsum()
     
-    intervals=(df_key['datee']-df_key['datee'].shift(1)).dropna().apply(lambda x: x.days)
+    intervals_1=(df_key_1['datee']-df_key_1['datee'].shift(1)).dropna().apply(lambda x: x.days)
     intervals_2=(df_key_2['datee']-df_key_2['datee'].shift(1)).dropna().apply(lambda x: x.days)
     intervals_12=(df_key_12['datee']-df_key_12['datee'].shift(1)).dropna().apply(lambda x: x.days)
     
@@ -346,8 +364,8 @@ def update_time_and_frequency_graphs(n_clicks,key,key_2,start_date,end_date):
     # row 1
     fig.add_trace(
         go.Scatter(
-            x=df_key['datee'],
-            y=df_key['boeking_eur'],
+            x=df_key_1['datee'],
+            y=df_key_1['boeking_eur'],
             mode='markers',
             marker={
                 'size': 10,
@@ -361,8 +379,8 @@ def update_time_and_frequency_graphs(n_clicks,key,key_2,start_date,end_date):
     )
     fig.add_trace(
         go.Scatter(
-            x=df_key['datee'],
-            y=df_key['cum_amount'],
+            x=df_key_1['datee'],
+            y=df_key_1['cum_amount'],
             mode='markers+lines',
             marker={
                 'size': 10,
@@ -459,7 +477,7 @@ def update_time_and_frequency_graphs(n_clicks,key,key_2,start_date,end_date):
      
     # row 1
     fig_freq.add_trace(go.Histogram(
-            x=intervals,
+            x=intervals_1,
             name='Intervals'
         ),
         row=1,

@@ -7,6 +7,7 @@ import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate
+import dash_table
 
 import plotly.graph_objs as go
 from plotly.subplots import make_subplots
@@ -228,6 +229,14 @@ app.layout=html.Div([
                     children=[
                         dcc.Tabs([
                             dcc.Tab(
+                                label='Stats',
+                                children=[
+                                    dash_table.DataTable(
+                                        id='stats-table'
+                                    )
+                                ]
+                            ),
+                            dcc.Tab(
                                 label='Time',
                                 children=[
                                     dcc.Graph(
@@ -337,7 +346,9 @@ def update_amount_text(value):
                         
 # Update time and frequency graphs based on all inputs
 @app.callback(
-    [Output('timegraph','figure'),
+    [Output('stats-table','columns'),
+     Output('stats-table','data'),
+     Output('timegraph','figure'),
      Output('freqgraph','figure')],
     [Input('submit-button', 'n_clicks')],
     [State('input_1','value'),
@@ -369,20 +380,44 @@ def update_time_and_frequency_graphs(n_clicks,key_1,key_2,start_date,end_date,am
     dcs=px.colors.qualitative.D3 # discrete color scale
     unique_account_colors={acc:dcs[i%len(dcs)] for (i,acc) in enumerate(unique_accounts_combined)}   
     
-    fig = make_subplots(rows=3,
-                    cols=1,
-                    shared_xaxes=True, 
-                    vertical_spacing=0.02,
-                    # subplot_titles=(key_1,key_2,key_1+' - '+key_2)
-                    )
-    fig_freq = make_subplots(rows=3, cols=1, vertical_spacing=0.02)
+    fig = make_subplots(
+        rows=3,
+        cols=1,
+        shared_xaxes=True, 
+        vertical_spacing=0.02,
+        # subplot_titles=(key_1,key_2,key_1+' - '+key_2)
+    )
+    fig_freq = make_subplots(
+        rows=3,
+        cols=1,
+        vertical_spacing=0.02
+    )
     
     if (not df_key_1.empty):
         df_key_1['other_key']=np.where(df_key_1['a_key']==key_1,df_key_1['b_key'],df_key_1['a_key'])
         df_key_1['col']=df_key_1['other_key'].apply(lambda acc:unique_account_colors[acc])
-        
+
         df_key_1['cum_amount']=df_key_1['boeking_eur'].cumsum()
+
+        df_key_1_sent=df_key_1[df_key_1['originn']==key_1]
+        df_key_1_received=df_key_1[df_key_1['dest']==key_1]
         
+        stats_df_key_1=pd.concat(
+             [df_key_1_received['amount'].describe(),
+             df_key_1_sent['amount'].describe(),
+             df_key_1['boeking_eur'].describe()],
+             axis=1
+        ).reset_index()
+        stats_df_key_1.columns=['index','Incoming','Outgoing','All']
+        
+        columns=[
+            {"name": '',"id":'index'},
+            {"name": 'Incoming', "id":'Incoming'},
+            {"name": 'Outgoing', "id":'Outgoing'},
+            {"name": 'All', "id":'All'}
+        ]
+        data=stats_df_key_1.to_dict('records')
+
         # row 1 time graph
         fig.add_trace(
             go.Scatter(
@@ -549,11 +584,9 @@ def update_time_and_frequency_graphs(n_clicks,key_1,key_2,start_date,end_date,am
     # Update layout
     fig.update_layout(
         autosize=False,
-        # width=800,
-        # height=800,
-        
-        margin={'l' : 0, 'r' : 0, 'b' : 0, 't' : 0,
-                'autoexpand' : True},
+        width=800,
+        height=800,      
+        margin={'l' : 0, 'r' : 0, 'b' : 0, 't' : 0, 'autoexpand' : True},
         hovermode='closest',
         showlegend=False
     )
@@ -571,14 +604,15 @@ def update_time_and_frequency_graphs(n_clicks,key_1,key_2,start_date,end_date,am
     # Update layout
     fig_freq.update_layout(
         autosize=False,
-        # width=800,
-        # height=800,
-        margin={'l': 0, 'b': 0, 't': 0, 'r': 0},
-        hovermode='closest'
+        width=800,
+        height=800,
+        margin={'l': 0, 'b': 0, 't': 0, 'r': 0, 'autoexpand' : True},
+        hovermode='closest',
+        showlegend=False
     )
     
     print('Done updating graphs')       
-    return fig,fig_freq
+    return columns,data,fig,fig_freq
 
 # Update network based on all inputs
 @app.callback(

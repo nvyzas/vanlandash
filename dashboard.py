@@ -7,7 +7,8 @@ import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate
-
+from numpy import array
+import plotly.express as px
 import plotly.graph_objs as go
 from plotly.subplots import make_subplots
 
@@ -177,7 +178,7 @@ app.layout=html.Div([
             className="row",
             children=[
                 html.Div(
-                    html.Iframe(id='mapx', width='500', height='550')
+                    html.Iframe(id='mapx', width='500', height='550'),
                 ),
                 html.Div(
                     className='col-6',
@@ -220,16 +221,18 @@ def update_network(n_clicks,Account_1,Account_2,start_date,end_date):
     recieved_bank=granular_bank_data[granular_bank_data['dest']==Account_1]
     tot_bank=pd.concat([sent_bank,recieved_bank])
     
-    edges = pd.DataFrame({'source': tot_bank['originn'],'target':tot_bank['dest']
-                          ,'weight': tot_bank['amount']
-                          ,'color': ['g' if x<=200 else 'r' for x in tot_bank['amount']]
-                         })
     adj_data = tot_bank
     if Account_1 != Account_2:
-        a=granular_bank_data[granular_bank_data['originn']==Account_2]
-        b=granular_bank_data[granular_bank_data['dest']==Account_2]
+        a=granular_bank_data[(granular_bank_data['originn']==Account_2) & (granular_bank_data['dest'] != Account_1)]
+        b=granular_bank_data[(granular_bank_data['dest']==Account_2) & (granular_bank_data['originn'] != Account_1)]
         adj_data=pd.concat([adj_data,a])
         adj_data=pd.concat([adj_data,b])
+
+    for i in adj_data['originn'].unique():
+        for j in adj_data['dest'].unique():
+            if i != Account_1 and j != Account_1 and i != Account_2 and j != Account_2:
+                origin_i=granular_bank_data[(granular_bank_data['originn']== i) & (granular_bank_data['dest']== j)]
+                adj_data=pd.concat([adj_data,origin_i])
     
     two_edges=pd.DataFrame({'source': adj_data['originn'],'target':adj_data['dest']
                           ,'weight': adj_data['amount']
@@ -321,11 +324,17 @@ def update_output_div_similarity(n_clicks,Account_1,Account_2,start_date,end_dat
                           ,'color': ['g' if x<=200 else 'r' for x in tot_bank['amount']]
                          })
     adj_data = tot_bank
+
     if Account_1 != Account_2:
-        a=granular_bank_data[granular_bank_data['originn']==Account_2]
-        b=granular_bank_data[granular_bank_data['dest']==Account_2]
+        a=granular_bank_data[(granular_bank_data['originn']==Account_2) & (granular_bank_data['dest'] != Account_1)]
+        b=granular_bank_data[(granular_bank_data['dest']==Account_2) & (granular_bank_data['originn'] != Account_1)]
         adj_data=pd.concat([adj_data,a])
         adj_data=pd.concat([adj_data,b])
+    for i in adj_data['originn'].unique():
+        for j in adj_data['dest'].unique():
+            if i != Account_1 and j != Account_1 and i != Account_2 and j != Account_2:
+                origin_i=granular_bank_data[(granular_bank_data['originn']== i) & (granular_bank_data['dest']== j)]
+                adj_data=pd.concat([adj_data,origin_i])
     
     two_edges=pd.DataFrame({'source': adj_data['originn'],'target':adj_data['dest']
                           ,'weight': adj_data['amount']
@@ -361,7 +370,9 @@ def update_user_input_components(key):
     
     print('Done updating user input components')
     return key_2,min_date_filtered,max_date_filtered,min_date_filtered,min_date_filtered,min_date_filtered
+################################callback for heatmap#####################
 
+#########################################################################
 @app.callback(
     [Output('timegraph','figure'),
      Output('freqgraph','figure')],

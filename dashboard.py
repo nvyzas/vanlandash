@@ -110,9 +110,10 @@ def sim_outgoing_two_nodes(sim_dict,a,b):
 def sim_incoming_two_nodes(sim_dict,a,b):
     return sim_dict[a][b]
 
-### App Layout
+### Define app
     
 app = dash.Dash(__name__)
+app.title = 'Van Lanschot Dashboard'
 
 colors = {
     'background': '#111111',
@@ -229,14 +230,6 @@ app.layout=html.Div([
                     children=[
                         dcc.Tabs([
                             dcc.Tab(
-                                label='Stats',
-                                children=[
-                                    dash_table.DataTable(
-                                        id='stats-table'
-                                    )
-                                ]
-                            ),
-                            dcc.Tab(
                                 label='Time',
                                 children=[
                                     dcc.Graph(
@@ -255,6 +248,12 @@ app.layout=html.Div([
                         ])
                     ]
                 )
+            ]
+        ),
+        html.Div(
+            id='stats-table-div',
+            children=[
+                
             ]
         )
 ])
@@ -346,8 +345,7 @@ def update_amount_text(value):
                         
 # Update time and frequency graphs based on all inputs
 @app.callback(
-    [Output('stats-table','columns'),
-     Output('stats-table','data'),
+    [Output('stats-table-div','children'),
      Output('timegraph','figure'),
      Output('freqgraph','figure')],
     [Input('submit-button', 'n_clicks')],
@@ -371,6 +369,34 @@ def update_time_and_frequency_graphs(n_clicks,key_1,key_2,start_date,end_date,am
     df_key_1=filter_df(key_1,sd,ed,amount_range[0],amount_range[1]).sort_values('datee')   
     df_key_2=filter_df(key_2,sd,ed,amount_range[0],amount_range[1]).sort_values('datee')
     df_key_12=df_key_1[(df_key_1['a_key']==key_2) | (df_key_1['b_key']==key_2)].sort_values('datee')
+
+    
+    ### Update stats table
+    
+    df_key_1_sent=df_key_1[df_key_1['originn']==key_1]
+    df_key_1_received=df_key_1[df_key_1['dest']==key_1]
+    
+    stats_df_key_1=pd.concat(
+         [df_key_1_received['amount'].describe(),
+         df_key_1_sent['amount'].describe(),
+         df_key_1['boeking_eur'].describe()],
+         axis=1
+    ).reset_index()
+    stats_df_key_1.columns=['index','Incoming','Outgoing','All']
+    
+    columns=[
+        {"name" : key_1,"id" : 'index'},
+        {"name" : 'Incoming', "id" : 'Incoming'},
+        {"name" : 'Outgoing', "id" :'Outgoing'},
+        {"name" : 'All', "id" : 'All'}
+    ]
+    data=stats_df_key_1.to_dict('records')
+    table=dash_table.DataTable(
+        columns=columns,
+        data=data
+    )
+    
+    ### Update time graphs
     
     accounts_key_1=df_key_1['a_key'].append(df_key_1['b_key'],ignore_index=True)
     accounts_key_2=df_key_2['a_key'].append(df_key_2['b_key'],ignore_index=True)
@@ -379,7 +405,20 @@ def update_time_and_frequency_graphs(n_clicks,key_1,key_2,start_date,end_date,am
     
     dcs=px.colors.qualitative.D3 # discrete color scale
     unique_account_colors={acc:dcs[i%len(dcs)] for (i,acc) in enumerate(unique_accounts_combined)}   
+  
+    df_key_1['other_key']=np.where(df_key_1['a_key']==key_1,df_key_1['b_key'],df_key_1['a_key'])
+    df_key_2['other_key']=np.where(df_key_2['a_key']==key_2,df_key_2['b_key'],df_key_2['a_key'])
+    df_key_12['other_key']=np.where(df_key_12['a_key']==key_1,df_key_12['b_key'],df_key_12['a_key'])
     
+    df_key_1['col']=df_key_1['other_key'].apply(lambda acc:unique_account_colors[acc])
+    df_key_2['col']=df_key_2['other_key'].apply(lambda acc:unique_account_colors[acc])
+    df_key_12['col']=df_key_12['other_key'].apply(lambda acc:unique_account_colors[acc])
+          
+    df_key_1['cum_amount']=df_key_1['boeking_eur'].cumsum()
+    df_key_2['cum_amount']=df_key_2['boeking_eur'].cumsum()
+    df_key_12['cum_amount']=df_key_12['boeking_eur'].cumsum()
+    
+    # time subplots
     fig = make_subplots(
         rows=3,
         cols=1,
@@ -387,221 +426,184 @@ def update_time_and_frequency_graphs(n_clicks,key_1,key_2,start_date,end_date,am
         vertical_spacing=0.02,
         # subplot_titles=(key_1,key_2,key_1+' - '+key_2)
     )
+    
+    # row 1 time graph
+    fig.add_trace(
+        go.Scatter(
+            x=df_key_1['datee'],
+            y=df_key_1['boeking_eur'],
+            text=df_key_1['other_key'],
+            mode='markers',
+            marker={
+                'color':df_key_1['col'],
+                'size': 10,
+                'opacity': 0.5,
+                'line': {'width': 0.5, 'color': 'white'}
+            },
+            name='Transactions'
+        ),     
+        row=1,
+        col=1
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=df_key_1['datee'],
+            y=df_key_1['cum_amount'],
+            text=key_1,
+            mode='lines',
+            marker={
+                'size': 10,
+                'opacity': 0.25,
+                'line': {'width': 0.5, 'color': 'white'}
+            },
+            line={
+                'color':unique_account_colors[key_1] if key_1 in unique_account_colors else None
+            },
+            name='Cumulative Transactions'
+        ),     
+        row=1,
+        col=1
+    )
+    
+    # row 2 time graph
+    fig.add_trace(go.Scatter(
+            x=df_key_2['datee'],
+            y=df_key_2['boeking_eur'],
+            text=df_key_2['other_key'],
+            mode='markers',
+            marker={
+                'color':df_key_2['col'],
+                'size': 10,
+                'opacity': 0.5,
+                'line': {'width': 0.5, 'color': 'white'}
+            },
+            name='Transactions'
+        ),
+        row=2,
+        col=1
+    )
+    fig.add_trace(go.Scatter(
+            x=df_key_2['datee'],
+            y=df_key_2['cum_amount'],
+            text=key_2,
+            mode='lines',
+            marker={
+                'size': 10,
+                'opacity': 0.25,
+                'line': {'width': 0.5, 'color': 'white'}
+            },
+            line={
+                'color':unique_account_colors[key_2] if key_2 in unique_account_colors else None
+            },
+            name='Cumulative Transactions'
+        ),
+        row=2,
+        col=1
+    )
+    
+    # row 3 time graph
+    fig.add_trace(go.Scatter(
+            x=df_key_12['datee'],
+            y=df_key_12['boeking_eur'],
+            text=df_key_12['other_key'],
+            mode='markers',
+            marker={
+                'color':df_key_12['col'],
+                'size': 10,
+                'opacity': 0.5,
+                'line': {'width': 0.5, 'color': 'white'}
+            },
+            name='Transactions'
+        ),
+        row=3,
+        col=1
+    )
+    fig.add_trace(go.Scatter(
+            x=df_key_12['datee'],
+            y=df_key_12['cum_amount'],
+            text=key_1,
+            mode='lines',
+            marker={
+                'size': 10,
+                'opacity': 0.25,
+                'line': {'width': 0.5, 'color': 'white'}
+            },
+            line={
+                'color':unique_account_colors[key_1] if key_1 in unique_account_colors else None
+            },
+            name='Cumulative Transactions'
+        ),
+        row=3,
+        col=1
+    )
+    
+    # xaxis properties
+    fig.update_xaxes(title_text="Time", row=3, col=1)
+    
+    # yaxis properties
+    fig.update_yaxes(title_text="Amount", row=1, col=1)
+    fig.update_yaxes(title_text="Amount", row=2, col=1)
+    fig.update_yaxes(title_text="Amount", row=3, col=1)
+    
+    # layout
+    fig.update_layout(
+        autosize=False,
+        # width=800,
+        # height=800,      
+        margin={'l' : 0, 'r' : 0, 'b' : 0, 't' : 0, 'autoexpand' : True},
+        hovermode='closest',
+        showlegend=False
+    )
+    
+    ### Update frequency graphs
+    
+    intervals_1=(df_key_1['datee']-df_key_1['datee'].shift(1)).dropna().apply(lambda x: x.days)
+    intervals_2=(df_key_2['datee']-df_key_2['datee'].shift(1)).dropna().apply(lambda x: x.days)
+    intervals_12=(df_key_12['datee']-df_key_12['datee'].shift(1)).dropna().apply(lambda x: x.days)
+
+    # frequency subplots
     fig_freq = make_subplots(
         rows=3,
         cols=1,
         vertical_spacing=0.02
     )
     
-    if (not df_key_1.empty):
-        df_key_1['other_key']=np.where(df_key_1['a_key']==key_1,df_key_1['b_key'],df_key_1['a_key'])
-        df_key_1['col']=df_key_1['other_key'].apply(lambda acc:unique_account_colors[acc])
-
-        df_key_1['cum_amount']=df_key_1['boeking_eur'].cumsum()
-
-        df_key_1_sent=df_key_1[df_key_1['originn']==key_1]
-        df_key_1_received=df_key_1[df_key_1['dest']==key_1]
-        
-        stats_df_key_1=pd.concat(
-             [df_key_1_received['amount'].describe(),
-             df_key_1_sent['amount'].describe(),
-             df_key_1['boeking_eur'].describe()],
-             axis=1
-        ).reset_index()
-        stats_df_key_1.columns=['index','Incoming','Outgoing','All']
-        
-        columns=[
-            {"name": '',"id":'index'},
-            {"name": 'Incoming', "id":'Incoming'},
-            {"name": 'Outgoing', "id":'Outgoing'},
-            {"name": 'All', "id":'All'}
-        ]
-        data=stats_df_key_1.to_dict('records')
-
-        # row 1 time graph
-        fig.add_trace(
-            go.Scatter(
-                x=df_key_1['datee'],
-                y=df_key_1['boeking_eur'],
-                text=df_key_1['other_key'],
-                mode='markers',
-                marker={
-                    'color':df_key_1['col'],
-                    'size': 10,
-                    'opacity': 0.5,
-                    'line': {'width': 0.5, 'color': 'white'}
-                },
-                name='Transactions'
-            ),     
-            row=1,
-            col=1
-        )
-        fig.add_trace(
-            go.Scatter(
-                x=df_key_1['datee'],
-                y=df_key_1['cum_amount'],
-                mode='lines',
-                marker={
-                    'size': 10,
-                    'opacity': 0.25,
-                    'line': {'width': 0.5, 'color': 'white'}
-                },
-                line={
-                    'color':unique_account_colors[key_1]
-                },
-                name='Cumulative Transactions'
-            ),     
-            row=1,
-            col=1
-        )
-        
-        intervals_1=(df_key_1['datee']-df_key_1['datee'].shift(1)).dropna().apply(lambda x: x.days)
-        
-        # row 1 frequency graph
-        fig_freq.add_trace(go.Histogram(
-                x=intervals_1,
-                name='Intervals'
-            ),
-            row=1,
-            col=1
-        )
-    
-    if (not df_key_2.empty):
-        df_key_2['other_key']=np.where(df_key_2['a_key']==key_2,df_key_2['b_key'],df_key_2['a_key'])
-        df_key_2['col']=df_key_2['other_key'].apply(lambda acc:unique_account_colors[acc])
-            
-        df_key_2['cum_amount']=df_key_2['boeking_eur'].cumsum()
-        
-        fig.add_trace(go.Scatter(
-                x=df_key_2['datee'],
-                y=df_key_2['boeking_eur'],
-                text=df_key_2['other_key'],
-                mode='markers',
-                marker={
-                    'color':df_key_2['col'],
-                    'size': 10,
-                    'opacity': 0.5,
-                    'line': {'width': 0.5, 'color': 'white'}
-                },
-                name='Transactions'
-            ),
-            row=2,
-            col=1
-        )
-        fig.add_trace(go.Scatter(
-                x=df_key_2['datee'],
-                y=df_key_2['cum_amount'],
-                mode='lines',
-                marker={
-                    'size': 10,
-                    'opacity': 0.25,
-                    'line': {'width': 0.5, 'color': 'white'}
-                },
-                line={
-                    'color':unique_account_colors[key_2]
-                },
-                name='Cumulative Transactions'
-            ),
-            row=2,
-            col=1
-        )
-        
-        intervals_2=(df_key_2['datee']-df_key_2['datee'].shift(1)).dropna().apply(lambda x: x.days)
-        
-        # row 2 frequency graph
-        fig_freq.add_trace(go.Histogram(
-                x=intervals_2,
-                name='Intervals'
-            ),
-            row=2,
-            col=1
-        )
-        
-    if (not df_key_12.empty):
-        df_key_12['other_key']=np.where(df_key_12['a_key']==key_1,df_key_12['b_key'],df_key_12['a_key'])
-        df_key_12['col']=df_key_12['other_key'].apply(lambda acc:unique_account_colors[acc])
-        
-        df_key_12['cum_amount']=df_key_12['boeking_eur'].cumsum()
-        
-        fig.add_trace(go.Scatter(
-                x=df_key_12['datee'],
-                y=df_key_12['boeking_eur'],
-                text=df_key_12['other_key'],
-                mode='markers',
-                marker={
-                    'color':df_key_12['col'],
-                    'size': 10,
-                    'opacity': 0.5,
-                    'line': {'width': 0.5, 'color': 'white'}
-                },
-                name='Transactions'
-            ),
-            row=3,
-            col=1
-        )
-        fig.add_trace(go.Scatter(
-                x=df_key_12['datee'],
-                y=df_key_12['cum_amount'],
-                mode='lines',
-                marker={
-                    'size': 10,
-                    'opacity': 0.25,
-                    'line': {'width': 0.5, 'color': 'white'}
-                },
-                line={
-                    'color':unique_account_colors[key_1]
-                },
-                name='Cumulative Transactions'
-            ),
-            row=3,
-            col=1
-        )
-        
-        intervals_12=(df_key_12['datee']-df_key_12['datee'].shift(1)).dropna().apply(lambda x: x.days)
-        
-        fig_freq.add_trace(go.Histogram(
-            x=intervals_12,
+    # row 1 frequency graph
+    fig_freq.add_trace(go.Histogram(
+            x=intervals_1,
             name='Intervals'
-            ),
-            row=3,
-            col=1
-        )
-
-    # pdb.set_trace()
-
-    ### Update axis and layouts    
-    
-    ## Time graphs
+        ),
+        row=1,
+        col=1
+    )
+       
+    # row 2 frequency graph
+    fig_freq.add_trace(go.Histogram(
+            x=intervals_2,
+            name='Intervals'
+        ),
+        row=2,
+        col=1
+    )
         
-    # Update xaxis properties
-    fig.update_xaxes(title_text="Time", row=3, col=1)
-    
-    # Update yaxis properties
-    fig.update_yaxes(title_text="Amount", row=1, col=1)
-    fig.update_yaxes(title_text="Amount", row=2, col=1)
-    fig.update_yaxes(title_text="Amount", row=3, col=1)
-    
-    # Update layout
-    fig.update_layout(
-        autosize=False,
-        width=800,
-        height=800,      
-        margin={'l' : 0, 'r' : 0, 'b' : 0, 't' : 0, 'autoexpand' : True},
-        hovermode='closest',
-        showlegend=False
+    # row 3 frequency graph
+    fig_freq.add_trace(go.Histogram(
+        x=intervals_12,
+        name='Intervals'
+        ),
+        row=3,
+        col=1
     )
     
-    ## Frequency graphs
-    
-    # Update xaxis properties
+    # xaxis properties
     fig_freq.update_xaxes(title_text="Interval (days)", row=3, col=1)
     
-    # Update yaxis properties
+    # yaxis properties
     fig_freq.update_yaxes(title_text="Frequency", row=1, col=1)
     fig_freq.update_yaxes(title_text="Frequency", row=2, col=1)
     fig_freq.update_yaxes(title_text="Frequency", row=3, col=1)
     
-    # Update layout
+    # layout
     fig_freq.update_layout(
         autosize=False,
         width=800,
@@ -612,7 +614,7 @@ def update_time_and_frequency_graphs(n_clicks,key_1,key_2,start_date,end_date,am
     )
     
     print('Done updating graphs')       
-    return columns,data,fig,fig_freq
+    return table,fig,fig_freq
 
 # Update network based on all inputs
 @app.callback(
@@ -760,4 +762,4 @@ def update_output_div_similarity(n_clicks,Account_1,Account_2,start_date,end_dat
 
 ### Run app
 if __name__ == '__main__':
-    app.run_server(debug=False)
+    app.run_server(debug=True)

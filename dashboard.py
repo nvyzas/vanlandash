@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+# LOOK INTO OVERWRITING CSS https://stackoverflow.com/questions/50844844/python-dash-custom-css
+# GOAL IS TO OVERWRITE SOME 2PX DEFAULTS IN THIS FILE https://cdnjs.cloudflare.com/ajax/libs/vis/4.16.1/vis.css
+
 # Perform imports here:
 import dash
 import dash_core_components as dcc
@@ -104,7 +107,7 @@ colors = {
 
 app.layout=html.Div([
         html.Div(
-            className="col-3",
+            className="col-4",
             id='heading',
             children=[
                 html.H1(children='Van Lanschot Bank', 
@@ -116,6 +119,9 @@ app.layout=html.Div([
         ),
         html.Div(
             className="row",
+            style={'height': '46px',
+                   'margin-top': '4px',
+                   'margin-bottom': '4px'},
             children=[
                 html.Div(
                     className="col-1",
@@ -123,7 +129,8 @@ app.layout=html.Div([
                         dcc.Input(
                          id='input_1',
                          type='text',
-                         value=unique_accounts[7]
+                         value=unique_accounts[7],
+                         style={'height': '47px'}
                          )
                     ]                        
                 ),
@@ -132,24 +139,25 @@ app.layout=html.Div([
                     children=[
                         dcc.Input(
                          id='input_2',
-                         type='text',                        
+                         type='text',
+                         style={'height': '47px'}
                          )
                     ]                        
                 ),
                 html.Div(
-                    className="col-2",
+                    className="col-4",
                     children=[
                         dcc.DatePickerRange(
                             id='datepicker',
                             display_format='DD MM YYYY',
                             start_date_placeholder_text="Start Date",
                             end_date_placeholder_text="End Date",
-                            calendar_orientation='horizontal',
+                            calendar_orientation='horizontal'
                         )  
                     ]
                 ),
                 html.Div(
-                    className="col-4",
+                    className="col-3",
                     children=[
                         dcc.RangeSlider(
                             id='amount-slider',
@@ -158,19 +166,21 @@ app.layout=html.Div([
                         html.Div(id='amount-slider-output')
                     ]
                 ),
-                html.Div(
-                    className="col-2",
+                html.Div( # Probably need to change this to children / input / text
+                    className="col-1",
                     id='textArea',
                     children=[  
                         dcc.Textarea( # todo: change this into DIV
-                            placeholder='Enter a value...',
-                            value='Similarity',
-                            style={'width': '100%'}
+                            placeholder='SimRank',
+                            #value='Similarity',
+                            style={'width': '100%'#,
+                            #'height': '69%'
+                            }
                         )
                     ]
                 ),
                 html.Div(
-                    className="col-2",
+                    className="col-1",
                     children=[
                         html.Button(
                         id='submit-button',
@@ -186,7 +196,7 @@ app.layout=html.Div([
                 html.Div(
                     className='col-6',
                     children=[
-                        html.Iframe(
+                        html.Iframe( # accessKey, aria-*, children, className, contentEditable, contextMenu, data-*, dir, draggable, height, hidden, id, key, lang, loading_state, n_clicks, n_clicks_timestamp, name, role, sandbox, spellCheck, src, srcDoc, style, tabIndex, title, width
                             id='mapx', 
                             width='100%', 
                             height='100%'

@@ -120,17 +120,17 @@ app.layout=html.Div([
         html.Div(
             className="row",
             style={'height': '46px',
-                   'margin-top': '4px',
-                   'margin-bottom': '4px'},
+                   'margin-top': '10px',
+                   'margin-bottom': '10px'},
             children=[
                 html.Div(
                     className="col-1",
                     children=[
                         dcc.Input(
-                         id='input_1',
-                         type='text',
-                         value=unique_accounts[7],
-                         style={'height': '47px'}
+                            id='input_1',
+                            type='text',
+                            value=unique_accounts[7],
+                            style={'height': '47px'}
                          )
                     ]                        
                 ),
@@ -173,11 +173,11 @@ app.layout=html.Div([
                         dcc.Textarea( # todo: change this into DIV
                             placeholder='SimRank',
                             #value='Similarity',
-                            style={'width': '100%'#,
-                            #'height': '69%'
+                            style={'width': '100%'
                             }
                         )
-                    ]
+                    ],
+                    style={'height': '46px'}
                 ),
                 html.Div(
                     className="col-1",

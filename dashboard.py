@@ -407,6 +407,7 @@ def update_time_and_frequency_graphs(n_clicks,key_1,key_2,start_date,end_date,am
         style_as_list_view=True,
         style_header={
             'backgroundColor': 'grey',
+            'color':'white',
             'fontWeight': 'bold'
         },
         style_data_conditional=[
@@ -414,14 +415,14 @@ def update_time_and_frequency_graphs(n_clicks,key_1,key_2,start_date,end_date,am
                 'if': {
                     'column_id': 'Incoming',
                 },
-                'backgroundColor': 'green',
+                'backgroundColor': '#5bc0de',
                 'color': 'white',
             },
             {
                 'if': {
                     'column_id': 'Outgoing',
                 },
-                'backgroundColor': 'red',
+                'backgroundColor': '#0275d8',
                 'color': 'white',
             }
         ]

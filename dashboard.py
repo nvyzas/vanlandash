@@ -10,8 +10,8 @@ import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate
-from numpy import array
-import plotly.express as px
+import dash_table
+
 import plotly.graph_objs as go
 from plotly.subplots import make_subplots
 import plotly.express as px
@@ -123,6 +123,8 @@ colors = {
     'text': '#7FDBFF'
 }
 
+### App Layout
+
 app.layout=html.Div([
         html.Div(
             className="col-4",
@@ -215,9 +217,9 @@ app.layout=html.Div([
                     className="col-1",
                     children=[
                         html.Button(
-                        id='submit-button',
-                        children='Submit',
-                        n_clicks=0
+                            id='submit-button',
+                            children='Submit',
+                            n_clicks=0
                         )
                     ]
                 )
@@ -229,12 +231,26 @@ app.layout=html.Div([
                 html.Div(
                     className='col-6',
                     children=[
-                        html.Iframe( # accessKey, aria-*, children, className, contentEditable, contextMenu, data-*, dir, draggable, height, hidden, id, key, lang, loading_state, n_clicks, n_clicks_timestamp, name, role, sandbox, spellCheck, src, srcDoc, style, tabIndex, title, width
-                            id='mapx', 
-                            width='100%', 
-                            height='100%'
+                        html.Div(
+                            # className='col-6',
+                            children=[
+                                html.Iframe(
+                                    id='mapx', 
+                                    width='100%', 
+                                    height='100%'
+                                )
+                            ],
+                            style={'width': '100%','height':'100%'}
+                        ),
+                        html.Div(
+                            # className='col-6',
+                            id='stats-table-div',
+                            children=[
+                            ],
+                            style={'width': '100%','height':'100%'}
                         )
-                    ]
+                    ],
+                    # style={'width': '100%','height':'100%'}
                 ),
                 html.Div(
                     className='col-6',
@@ -259,12 +275,6 @@ app.layout=html.Div([
                         ])
                     ]
                 )
-            ]
-        ),
-        html.Div(
-            id='stats-table-div',
-            children=[
-                
             ]
         )
 ])
@@ -380,7 +390,6 @@ def update_time_and_frequency_graphs(n_clicks,key_1,key_2,start_date,end_date,am
     df_key_1=filter_df(key_1,sd,ed,amount_range[0],amount_range[1]).sort_values('datee')   
     df_key_2=filter_df(key_2,sd,ed,amount_range[0],amount_range[1]).sort_values('datee')
     df_key_12=df_key_1[(df_key_1['a_key']==key_2) | (df_key_1['b_key']==key_2)].sort_values('datee')
-
     
     ### Update stats table
     
@@ -401,10 +410,33 @@ def update_time_and_frequency_graphs(n_clicks,key_1,key_2,start_date,end_date,am
         {"name" : 'Outgoing', "id" :'Outgoing'},
         {"name" : 'All', "id" : 'All'}
     ]
-    data=stats_df_key_1.to_dict('records')
+    data=stats_df_key_1.round(2).to_dict('records')
+    
     table=dash_table.DataTable(
         columns=columns,
-        data=data
+        data=data,
+        style_as_list_view=True,
+        style_header={
+            'backgroundColor': 'grey',
+            'color':'white',
+            'fontWeight': 'bold'
+        },
+        style_data_conditional=[
+            {
+                'if': {
+                    'column_id': 'Incoming',
+                },
+                'backgroundColor': '#5bc0de',
+                'color': 'white',
+            },
+            {
+                'if': {
+                    'column_id': 'Outgoing',
+                },
+                'backgroundColor': '#0275d8',
+                'color': 'white',
+            }
+        ]
     )
     
     ### Update time graphs
@@ -649,6 +681,10 @@ def update_network(n_clicks,Account_1,Account_2,start_date,end_date):
     recieved_bank=granular_bank_data[granular_bank_data['dest']==Account_1]
     tot_bank=pd.concat([sent_bank,recieved_bank])
     
+    edges = pd.DataFrame({'source': tot_bank['originn'],'target':tot_bank['dest']
+                          ,'weight': tot_bank['amount']
+                          ,'color': ['g' if x<=200 else 'r' for x in tot_bank['amount']]
+                         })
     adj_data = tot_bank
     if Account_1 != Account_2:
         a=granular_bank_data[(granular_bank_data['originn']==Account_2) & (granular_bank_data['dest'] != Account_1)]

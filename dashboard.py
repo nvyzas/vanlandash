@@ -120,6 +120,8 @@ colors = {
     'text': '#7FDBFF'
 }
 
+### App Layout
+
 app.layout=html.Div([
         html.Div(
             className="col-3",
@@ -204,9 +206,9 @@ app.layout=html.Div([
                     className="col-2",
                     children=[
                         html.Button(
-                        id='submit-button',
-                        children='Submit',
-                        n_clicks=0
+                            id='submit-button',
+                            children='Submit',
+                            n_clicks=0
                         )
                     ]
                 )
@@ -218,12 +220,26 @@ app.layout=html.Div([
                 html.Div(
                     className='col-6',
                     children=[
-                        html.Iframe(
-                            id='mapx', 
-                            width='100%', 
-                            height='100%'
+                        html.Div(
+                            # className='col-6',
+                            children=[
+                                html.Iframe(
+                                    id='mapx', 
+                                    width='100%', 
+                                    height='100%'
+                                )
+                            ],
+                            style={'width': '100%','height':'100%'}
+                        ),
+                        html.Div(
+                            # className='col-6',
+                            id='stats-table-div',
+                            children=[
+                            ],
+                            style={'width': '100%','height':'100%'}
                         )
-                    ]
+                    ],
+                    # style={'width': '100%','height':'100%'}
                 ),
                 html.Div(
                     className='col-6',
@@ -248,12 +264,6 @@ app.layout=html.Div([
                         ])
                     ]
                 )
-            ]
-        ),
-        html.Div(
-            id='stats-table-div',
-            children=[
-                
             ]
         )
 ])
@@ -369,7 +379,6 @@ def update_time_and_frequency_graphs(n_clicks,key_1,key_2,start_date,end_date,am
     df_key_1=filter_df(key_1,sd,ed,amount_range[0],amount_range[1]).sort_values('datee')   
     df_key_2=filter_df(key_2,sd,ed,amount_range[0],amount_range[1]).sort_values('datee')
     df_key_12=df_key_1[(df_key_1['a_key']==key_2) | (df_key_1['b_key']==key_2)].sort_values('datee')
-
     
     ### Update stats table
     
@@ -390,10 +399,32 @@ def update_time_and_frequency_graphs(n_clicks,key_1,key_2,start_date,end_date,am
         {"name" : 'Outgoing', "id" :'Outgoing'},
         {"name" : 'All', "id" : 'All'}
     ]
-    data=stats_df_key_1.to_dict('records')
+    data=stats_df_key_1.round(2).to_dict('records')
+    
     table=dash_table.DataTable(
         columns=columns,
-        data=data
+        data=data,
+        style_as_list_view=True,
+        style_header={
+            'backgroundColor': 'grey',
+            'fontWeight': 'bold'
+        },
+        style_data_conditional=[
+            {
+                'if': {
+                    'column_id': 'Incoming',
+                },
+                'backgroundColor': 'green',
+                'color': 'white',
+            },
+            {
+                'if': {
+                    'column_id': 'Outgoing',
+                },
+                'backgroundColor': 'red',
+                'color': 'white',
+            }
+        ]
     )
     
     ### Update time graphs

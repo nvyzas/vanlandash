@@ -336,10 +336,10 @@ app.layout=html.Div([
     Output('input_2','value'),
     [Input('input_1','value')])
 def update_key_2(key_1):
-    print('Updating key 2')
     
     df_filtered_1=filter_df(key_1)
-    if (df_filtered_1.empty) or (key_1==None):
+    
+    if (df_filtered_1.empty) or (key_1 is None):
         print("Preventing update of key 2")
         raise PreventUpdate
         
@@ -348,7 +348,6 @@ def update_key_2(key_1):
     
     key_2 = unique_accounts_filtered_without_key_1[0]
     
-    print('Done updating key 2')
     return key_2
 
 
@@ -365,14 +364,13 @@ def update_key_2(key_1):
     [Input('input_1','value'),
      Input('input_2','value')])
 def update_dates_and_amounts(key_1,key_2):
-    print('Updating dates and amounts')
-          
+ 
     # get global df filtered according to key_1 and key_2
     
     df_key_1=filter_df(key_1)
     df_key_2=filter_df(key_2)
     
-    if (key_1==None) or (key_2==None) or (df_key_1.empty) or (df_key_2.empty):
+    if (key_1 is None) or (key_2 is None) or (df_key_1.empty) or (df_key_2.empty):
         print("Preventing update of dates and amounts")
         raise PreventUpdate
         
@@ -398,7 +396,6 @@ def update_dates_and_amounts(key_1,key_2):
     min_amount_12=min_amount_1 if min_amount_1<=min_amount_2 else min_amount_2
     max_amount_12=max_amount_1 if max_amount_1>=max_amount_2 else max_amount_2
     
-    print('Done updating dates and amounts')
     return min_date_12,max_date_12,min_date_12,max_date_12,min_date_12,min_amount_12,max_amount_12,[min_amount_12,max_amount_12]
 
 
@@ -409,8 +406,8 @@ def update_dates_and_amounts(key_1,key_2):
     [Input('amount-slider','value')])
 def update_amount_text(value):
     
-    if (value==None):
-        print("Preventing update of amounts")
+    if (value is None):
+        print("Preventing update of amount text")
         raise PreventUpdate
 
     return 'Min: {}'.format(value[0]),'Max: {}'.format(value[1])
@@ -425,10 +422,9 @@ def update_amount_text(value):
      Input('datepicker','end_date'),
      Input('amount-slider','value')])
 def update_intermediate_div(key_1,key_2,start_date,end_date,amount_range):
-    print('Updating graphs')
-    
+  
     if ((key_1 is None) or (key_2 is None) or (start_date is None) or (end_date is None) or (amount_range is None)):
-        print('Preventing update of time and frequency graphs')
+        print('Preventing update of intermediate div')
         raise PreventUpdate
         
     # Calculate necessary variables
@@ -478,9 +474,15 @@ def update_intermediate_div(key_1,key_2,start_date,end_date,amount_range):
     
 @app.callback(
     Output('stats_table_1_div','children'),
-    [Input('intermediate_div','children')])
-def update_stat_tables(jsonified_data):
+    [Input('submit-button','n_clicks')],
+    [State('intermediate_div','children')])
+def update_stat_tables(n_clicks,jsonified_data):
     
+    if ((n_clicks is None) or (jsonified_data is None)):
+        print('Preventing update of stat tables')
+        raise PreventUpdate
+        
+    # pdb.set_trace()
     # get variables from jsonidied_date
     datasets=json.loads(jsonified_data)
     df_key_1=pd.read_json(datasets['df_key_1'],orient='split')
@@ -538,9 +540,14 @@ def update_stat_tables(jsonified_data):
 
 @app.callback(
     Output('cumgraph','figure'),
-    [Input('intermediate_div','children')])
-def update_cum_graphs(jsonified_data):
+    [Input('submit-button','n_clicks')],
+    [State('intermediate_div','children')])
+def update_cum_graphs(n_clicks,jsonified_data):
     
+    if ((n_clicks is None) or (jsonified_data is None)):
+        print('Preventing update of stat tables')
+        raise PreventUpdate
+        
     # get variables from jsonidied_data
     datasets=json.loads(jsonified_data)
     df_key_1=pd.read_json(datasets['df_key_1'],orient='split')
@@ -647,9 +654,14 @@ def update_cum_graphs(jsonified_data):
 
 @app.callback(
     Output('timegraph','figure'),
-    [Input('intermediate_div','children')])
-def update_time_graphs(jsonified_data):
+    [Input('submit-button','n_clicks')],
+    [State('intermediate_div','children')])
+def update_time_graphs(n_clicks,jsonified_data):
     
+    if ((n_clicks is None) or (jsonified_data is None)):
+        print('Preventing update of stat tables')
+        raise PreventUpdate
+        
     # get variables from jsonidied_data
     datasets=json.loads(jsonified_data)
     df_key_1=pd.read_json(datasets['df_key_1'],orient='split')
@@ -750,9 +762,15 @@ def update_time_graphs(jsonified_data):
     
 
 @app.callback(
-     Output('freqgraph','figure'),
-    [Input('intermediate_div','children')])
-def update_frequency_graphs(jsonified_data):
+    Output('freqgraph','figure'),
+    [Input('submit-button','n_clicks')],
+    [State('intermediate_div','children')])
+def update_frequency_graphs(n_clicks,jsonified_data):
+    
+    if ((n_clicks is None) or (jsonified_data is None)):
+        print('Preventing update of stat tables')
+        raise PreventUpdate
+        
     if jsonified_data is None:
         print('Preventing update of frequency graphs')
         raise PreventUpdate
@@ -843,7 +861,7 @@ def update_frequency_graphs(jsonified_data):
 def update_network(n_clicks,Account_1,Account_2,start_date,end_date):
     
     if ((Account_1 is None) or (Account_2 is None) or (start_date is None) or (end_date is None)):
-        print('Preventing update of time and frequency graphs')
+        print('Preventing update of network')
         raise PreventUpdate
         
     bank_data = df.copy()
@@ -949,7 +967,7 @@ from itertools import product
 def update_output_div_similarity(n_clicks,Account_1,Account_2,start_date,end_date):
     
     if ((Account_1 is None) or (Account_2 is None) or (start_date is None) or (end_date is None)):
-        print('Preventing update of time and frequency graphs')
+        print('Preventing update of similarity')
         raise PreventUpdate
         
     bank_data = df.copy()

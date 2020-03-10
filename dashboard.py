@@ -57,7 +57,7 @@ def filter_df(key,
               end_amount=max_abs_amount):
     key_condition=((df['a_key']==key) | (df['b_key']==key))
     date_condition=(df['datee']>=start_date) & (df['datee']<=end_date)
-    amount_condition=(df['boeking_eur']>=start_amount) & (df['boeking_eur']<=end_amount)
+    amount_condition=(df['amount']>=start_amount) & (df['amount']<=end_amount)
     condition=key_condition & date_condition & amount_condition
     return df[condition]
 
@@ -308,8 +308,15 @@ app.layout=html.Div([
                                 label='Stats', 
                                 children=[
                                     html.Div(
-                                        # className='col-6',
-                                        id='stats_table_div',
+                                        id='stats_table_1_div',
+                                        # style={'width': '100%','height':'100%'}
+                                    ),
+                                    html.Div(
+                                        id='stats_table_2_div',
+                                        # style={'width': '100%','height':'100%'}
+                                    ),
+                                    html.Div(
+                                        id='stats_table_1_2_div',
                                         # style={'width': '100%','height':'100%'}
                                     )
                                 ]
@@ -345,7 +352,7 @@ def update_key_2(key_1):
     return key_2
 
 
-# Update dates and amounts based on key_1 and key_2
+# Update minimum and maximum dates and amounts based on key_1 and key_2
 @app.callback(
     [Output('datepicker','min_date_allowed'),
      Output('datepicker','max_date_allowed'),
@@ -394,6 +401,7 @@ def update_dates_and_amounts(key_1,key_2):
     print('Done updating dates and amounts')
     return min_date_12,max_date_12,min_date_12,max_date_12,min_date_12,min_amount_12,max_amount_12,[min_amount_12,max_amount_12]
 
+
 # Update text representing the min and max value of amount slider
 @app.callback(
     [Output('amount-slider-min-text','children'),
@@ -406,6 +414,7 @@ def update_amount_text(value):
         raise PreventUpdate
 
     return 'Min: {}'.format(value[0]),'Max: {}'.format(value[1])
+
 
 # Update intermediate div
 @app.callback(
@@ -429,22 +438,48 @@ def update_intermediate_div(key_1,key_2,start_date,end_date,amount_range):
     
     df_key_1=filter_df(key_1,sd,ed,amount_range[0],amount_range[1]).sort_values('datee')   
     df_key_2=filter_df(key_2,sd,ed,amount_range[0],amount_range[1]).sort_values('datee')
-    df_key_12=df_key_1[(df_key_1['a_key']==key_2) | (df_key_1['b_key']==key_2)].sort_values('datee')
+    df_key_1_2=df_key_1[(df_key_1['a_key']==key_2) | (df_key_1['b_key']==key_2)].sort_values('datee')
+    
+    df_key_1['cum_amount']=df_key_1['boeking_eur'].cumsum()
+    df_key_2['cum_amount']=df_key_2['boeking_eur'].cumsum()
+    df_key_1_2['cum_amount']=df_key_1_2['boeking_eur'].cumsum()
+    
+    df_key_1['other_key']=np.where(df_key_1['a_key']==key_1,df_key_1['b_key'],df_key_1['a_key'])
+    df_key_2['other_key']=np.where(df_key_2['a_key']==key_2,df_key_2['b_key'],df_key_2['a_key'])
+    df_key_1_2['other_key']=np.where(df_key_1_2['a_key']==key_1,df_key_1_2['b_key'],df_key_1_2['a_key'])
+    
+    accounts_key_1=df_key_1['a_key'].append(df_key_1['b_key'],ignore_index=True)
+    accounts_key_2=df_key_2['a_key'].append(df_key_2['b_key'],ignore_index=True)
+    accounts_combined=accounts_key_1.append(accounts_key_2,ignore_index=True)
+    unique_accounts_combined=accounts_combined.unique()
+    
+    dcs=px.colors.qualitative.D3 # discrete color scale
+    unique_account_colors={acc:dcs[i%len(dcs)] for (i,acc) in enumerate(unique_accounts_combined)}   
+  
+    df_key_1['col']=df_key_1['other_key'].apply(lambda acc:unique_account_colors[acc])
+    df_key_2['col']=df_key_2['other_key'].apply(lambda acc:unique_account_colors[acc])
+    df_key_1_2['col']=df_key_1_2['other_key'].apply(lambda acc:unique_account_colors[acc])
     
     datasets = {
          'df_key_1': df_key_1.to_json(orient='split', date_format='iso'),
          'df_key_2': df_key_2.to_json(orient='split', date_format='iso'),
-         'df_key_12': df_key_12.to_json(orient='split', date_format='iso'),
+         'df_key_1_2': df_key_1_2.to_json(orient='split', date_format='iso'),
          'key_1':key_1,
          'key_2':key_2,
+         # 'start_date':sd,
+         # 'end_date':ed,
+         # 'start_amount':amount_range[0],
+         # 'end_amount':amount_range[1]
+         'unique_account_colors':unique_account_colors
      }
     
     return json.dumps(datasets)
+
     
 @app.callback(
-    Output('stats_table_div','children'),
+    Output('stats_table_1_div','children'),
     [Input('intermediate_div','children')])
-def update_stats(jsonified_data):
+def update_stat_tables(jsonified_data):
     
     # get variables from jsonidied_date
     datasets=json.loads(jsonified_data)
@@ -497,109 +532,27 @@ def update_stats(jsonified_data):
             }
         ]
     )
-        
-    # pdb.set_trace()
 
     return table
-                      
-# Update time and frequency graphs based on all inputs
+
+
 @app.callback(
-    [Output('stats-table-div','children'),
-     Output('timegraph','figure'),
-     Output('freqgraph','figure')],
-    [Input('submit-button', 'n_clicks')],
-    [State('input_1','value'),
-     State('input_2','value'),
-     State('datepicker','start_date'),
-     State('datepicker','end_date'),
-     State('amount-slider','value')])
-def update_time_and_frequency_graphs(n_clicks,key_1,key_2,start_date,end_date,amount_range):
-    print('Updating graphs')
+    Output('cumgraph','figure'),
+    [Input('intermediate_div','children')])
+def update_cum_graphs(jsonified_data):
     
-    if ((key_1 is None) or (key_2 is None) or (start_date is None) or (end_date is None) or (amount_range is None)):
-        print('Preventing update of time and frequency graphs')
-        raise PreventUpdate
-        
-    # Calculate necessary variables
+    # get variables from jsonidied_data
+    datasets=json.loads(jsonified_data)
+    df_key_1=pd.read_json(datasets['df_key_1'],orient='split')
+    df_key_2=pd.read_json(datasets['df_key_2'],orient='split')
+    df_key_1_2=pd.read_json(datasets['df_key_1_2'],orient='split')
     
-    sd=datetime.strptime(start_date.split(' ')[0],'%Y-%m-%d').date()
-    ed=datetime.strptime(end_date.split(' ')[0],'%Y-%m-%d').date()
+    key_1=datasets['key_1']
+    key_2=datasets['key_2']
     
-    df_key_1=filter_df(key_1,sd,ed,amount_range[0],amount_range[1]).sort_values('datee')   
-    df_key_2=filter_df(key_2,sd,ed,amount_range[0],amount_range[1]).sort_values('datee')
-    df_key_12=df_key_1[(df_key_1['a_key']==key_2) | (df_key_1['b_key']==key_2)].sort_values('datee')
+    unique_account_colors=datasets['unique_account_colors']
     
-    ### Update stats table
-    
-    df_key_1_sent=df_key_1[df_key_1['originn']==key_1]
-    df_key_1_received=df_key_1[df_key_1['dest']==key_1]
-    
-    stats_df_key_1=pd.concat(
-         [df_key_1_received['amount'].describe(),
-         df_key_1_sent['amount'].describe(),
-         df_key_1['boeking_eur'].describe()],
-         axis=1
-    ).reset_index()
-    stats_df_key_1.columns=['index','Incoming','Outgoing','All']
-    
-    columns=[
-        {"name" : key_1,"id" : 'index'},
-        {"name" : 'Incoming', "id" : 'Incoming'},
-        {"name" : 'Outgoing', "id" :'Outgoing'},
-        {"name" : 'All', "id" : 'All'}
-    ]
-    data=stats_df_key_1.round(2).to_dict('records')
-    
-    table=dash_table.DataTable(
-        columns=columns,
-        data=data,
-        style_as_list_view=True,
-        style_header={
-            'backgroundColor': 'grey',
-            'color':'white',
-            'fontWeight': 'bold'
-        },
-        style_data_conditional=[
-            {
-                'if': {
-                    'column_id': 'Incoming',
-                },
-                'backgroundColor': '#5bc0de',
-                'color': 'white',
-            },
-            {
-                'if': {
-                    'column_id': 'Outgoing',
-                },
-                'backgroundColor': '#0275d8',
-                'color': 'white',
-            }
-        ]
-    )
-    
-    ### Update time graphs
-    
-    accounts_key_1=df_key_1['a_key'].append(df_key_1['b_key'],ignore_index=True)
-    accounts_key_2=df_key_2['a_key'].append(df_key_2['b_key'],ignore_index=True)
-    accounts_combined=accounts_key_1.append(accounts_key_2,ignore_index=True)
-    unique_accounts_combined=accounts_combined.unique()
-    
-    dcs=px.colors.qualitative.D3 # discrete color scale
-    unique_account_colors={acc:dcs[i%len(dcs)] for (i,acc) in enumerate(unique_accounts_combined)}   
-  
-    df_key_1['other_key']=np.where(df_key_1['a_key']==key_1,df_key_1['b_key'],df_key_1['a_key'])
-    df_key_2['other_key']=np.where(df_key_2['a_key']==key_2,df_key_2['b_key'],df_key_2['a_key'])
-    df_key_12['other_key']=np.where(df_key_12['a_key']==key_1,df_key_12['b_key'],df_key_12['a_key'])
-    
-    df_key_1['col']=df_key_1['other_key'].apply(lambda acc:unique_account_colors[acc])
-    df_key_2['col']=df_key_2['other_key'].apply(lambda acc:unique_account_colors[acc])
-    df_key_12['col']=df_key_12['other_key'].apply(lambda acc:unique_account_colors[acc])
-          
-    df_key_1['cum_amount']=df_key_1['boeking_eur'].cumsum()
-    df_key_2['cum_amount']=df_key_2['boeking_eur'].cumsum()
-    df_key_12['cum_amount']=df_key_12['boeking_eur'].cumsum()
-    
-    # time subplots
+    # make subplots
     fig = make_subplots(
         rows=3,
         cols=1,
@@ -608,24 +561,7 @@ def update_time_and_frequency_graphs(n_clicks,key_1,key_2,start_date,end_date,am
         # subplot_titles=(key_1,key_2,key_1+' - '+key_2)
     )
     
-    # row 1 time graph
-    fig.add_trace(
-        go.Scatter(
-            x=df_key_1['datee'],
-            y=df_key_1['boeking_eur'],
-            text=df_key_1['other_key'],
-            mode='markers',
-            marker={
-                'color':df_key_1['col'],
-                'size': 10,
-                'opacity': 0.5,
-                'line': {'width': 0.5, 'color': 'white'}
-            },
-            name='Transactions'
-        ),     
-        row=1,
-        col=1
-    )
+    # key_1
     fig.add_trace(
         go.Scatter(
             x=df_key_1['datee'],
@@ -646,24 +582,9 @@ def update_time_and_frequency_graphs(n_clicks,key_1,key_2,start_date,end_date,am
         col=1
     )
     
-    # row 2 time graph
-    fig.add_trace(go.Scatter(
-            x=df_key_2['datee'],
-            y=df_key_2['boeking_eur'],
-            text=df_key_2['other_key'],
-            mode='markers',
-            marker={
-                'color':df_key_2['col'],
-                'size': 10,
-                'opacity': 0.5,
-                'line': {'width': 0.5, 'color': 'white'}
-            },
-            name='Transactions'
-        ),
-        row=2,
-        col=1
-    )
-    fig.add_trace(go.Scatter(
+    # key_2
+    fig.add_trace(
+        go.Scatter(
             x=df_key_2['datee'],
             y=df_key_2['cum_amount'],
             text=key_2,
@@ -682,26 +603,11 @@ def update_time_and_frequency_graphs(n_clicks,key_1,key_2,start_date,end_date,am
         col=1
     )
     
-    # row 3 time graph
-    fig.add_trace(go.Scatter(
-            x=df_key_12['datee'],
-            y=df_key_12['boeking_eur'],
-            text=df_key_12['other_key'],
-            mode='markers',
-            marker={
-                'color':df_key_12['col'],
-                'size': 10,
-                'opacity': 0.5,
-                'line': {'width': 0.5, 'color': 'white'}
-            },
-            name='Transactions'
-        ),
-        row=3,
-        col=1
-    )
-    fig.add_trace(go.Scatter(
-            x=df_key_12['datee'],
-            y=df_key_12['cum_amount'],
+    # key_1_2
+    fig.add_trace(
+        go.Scatter(
+            x=df_key_1_2['datee'],
+            y=df_key_1_2['cum_amount'],
             text=key_1,
             mode='lines',
             marker={
@@ -735,21 +641,150 @@ def update_time_and_frequency_graphs(n_clicks,key_1,key_2,start_date,end_date,am
         hovermode='closest',
         showlegend=False
     )
+
+    return fig
+
+
+@app.callback(
+    Output('timegraph','figure'),
+    [Input('intermediate_div','children')])
+def update_time_graphs(jsonified_data):
     
-    ### Update frequency graphs
+    # get variables from jsonidied_data
+    datasets=json.loads(jsonified_data)
+    df_key_1=pd.read_json(datasets['df_key_1'],orient='split')
+    df_key_2=pd.read_json(datasets['df_key_2'],orient='split')
+    df_key_1_2=pd.read_json(datasets['df_key_1_2'],orient='split')
+    
+    key_1=datasets['key_1']
+    key_2=datasets['key_2']
+    
+    unique_account_colors=datasets['unique_account_colors']
+    
+    # make subplots
+    fig = make_subplots(
+        rows=3,
+        cols=1,
+        shared_xaxes=True, 
+        vertical_spacing=0.02,
+        # subplot_titles=(key_1,key_2,key_1+' - '+key_2)
+    )
+    
+    # key_1
+    fig.add_trace(
+        go.Scatter(
+            x=df_key_1['datee'],
+            y=df_key_1['boeking_eur'],
+            text=df_key_1['other_key'],
+            mode='markers',
+            marker={
+                'color':df_key_1['col'],
+                'size': 10,
+                'opacity': 0.5,
+                'line': {'width': 0.5, 'color': 'white'}
+            },
+            name='Transactions'
+        ),     
+        row=1,
+        col=1
+    )
+       
+    # key_2
+    fig.add_trace(
+        go.Scatter(
+            x=df_key_2['datee'],
+            y=df_key_2['boeking_eur'],
+            text=df_key_2['other_key'],
+            mode='markers',
+            marker={
+                'color':df_key_2['col'],
+                'size': 10,
+                'opacity': 0.5,
+                'line': {'width': 0.5, 'color': 'white'}
+            },
+            name='Transactions'
+        ),
+        row=2,
+        col=1
+    )
+    
+    
+    # key_1_2
+    fig.add_trace(
+        go.Scatter(
+            x=df_key_1_2['datee'],
+            y=df_key_1_2['boeking_eur'],
+            text=df_key_1_2['other_key'],
+            mode='markers',
+            marker={
+                'color':df_key_1_2['col'],
+                'size': 10,
+                'opacity': 0.5,
+                'line': {'width': 0.5, 'color': 'white'}
+            },
+            name='Transactions'
+        ),
+        row=3,
+        col=1
+    )
+    
+    # xaxis properties
+    fig.update_xaxes(title_text="Time", row=3, col=1)
+    
+    # yaxis properties
+    fig.update_yaxes(title_text="Amount", row=1, col=1)
+    fig.update_yaxes(title_text="Amount", row=2, col=1)
+    fig.update_yaxes(title_text="Amount", row=3, col=1)
+    
+    # layout
+    fig.update_layout(
+        autosize=False,
+        # width=800,
+        # height=800,      
+        margin={'l' : 0, 'r' : 0, 'b' : 0, 't' : 0, 'autoexpand' : True},
+        hovermode='closest',
+        showlegend=False
+    )
+    
+    return fig
+    
+
+@app.callback(
+     Output('freqgraph','figure'),
+    [Input('intermediate_div','children')])
+def update_frequency_graphs(jsonified_data):
+    if jsonified_data is None:
+        print('Preventing update of frequency graphs')
+        raise PreventUpdate
+    
+    # get variables from jsonidied_data
+    datasets=json.loads(jsonified_data)
+    df_key_1=pd.read_json(datasets['df_key_1'],orient='split')
+    df_key_2=pd.read_json(datasets['df_key_2'],orient='split')
+    df_key_1_2=pd.read_json(datasets['df_key_1_2'],orient='split')
+    
+    key_1=datasets['key_1']
+    key_2=datasets['key_2']
+    
+    unique_account_colors=datasets['unique_account_colors']
+     
+
+    df_key_1['datee']=pd.to_datetime(df_key_1['datee']).dt.date
+    df_key_2['datee']=pd.to_datetime(df_key_2['datee']).dt.date
+    df_key_1_2['datee']=pd.to_datetime(df_key_1_2['datee']).dt.date
     
     intervals_1=(df_key_1['datee']-df_key_1['datee'].shift(1)).dropna().apply(lambda x: x.days)
     intervals_2=(df_key_2['datee']-df_key_2['datee'].shift(1)).dropna().apply(lambda x: x.days)
-    intervals_12=(df_key_12['datee']-df_key_12['datee'].shift(1)).dropna().apply(lambda x: x.days)
+    intervals_1_2=(df_key_1_2['datee']-df_key_1_2['datee'].shift(1)).dropna().apply(lambda x: x.days)
 
-    # frequency subplots
+    # make subplots
     fig_freq = make_subplots(
         rows=3,
         cols=1,
         vertical_spacing=0.02
     )
     
-    # row 1 frequency graph
+    # key_1
     fig_freq.add_trace(go.Histogram(
             x=intervals_1,
             name='Intervals'
@@ -758,7 +793,7 @@ def update_time_and_frequency_graphs(n_clicks,key_1,key_2,start_date,end_date,am
         col=1
     )
        
-    # row 2 frequency graph
+    # key_2
     fig_freq.add_trace(go.Histogram(
             x=intervals_2,
             name='Intervals'
@@ -767,9 +802,9 @@ def update_time_and_frequency_graphs(n_clicks,key_1,key_2,start_date,end_date,am
         col=1
     )
         
-    # row 3 frequency graph
+    # key_1_2
     fig_freq.add_trace(go.Histogram(
-        x=intervals_12,
+        x=intervals_1_2,
         name='Intervals'
         ),
         row=3,
@@ -787,15 +822,15 @@ def update_time_and_frequency_graphs(n_clicks,key_1,key_2,start_date,end_date,am
     # layout
     fig_freq.update_layout(
         autosize=False,
-        width=800,
-        height=800,
+        # width=800,
+        # height=800,
         margin={'l': 0, 'b': 0, 't': 0, 'r': 0, 'autoexpand' : True},
         hovermode='closest',
         showlegend=False
     )
     
     print('Done updating graphs')       
-    return table,fig,fig_freq
+    return fig_freq
 
 # Update network based on all inputs
 @app.callback(

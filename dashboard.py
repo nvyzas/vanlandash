@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-# LOOK INTO OVERWRITING CSS https://stackoverflow.com/questions/50844844/python-dash-custom-css
-# GOAL IS TO OVERWRITE SOME 2PX DEFAULTS IN THIS FILE https://cdnjs.cloudflare.com/ajax/libs/vis/4.16.1/vis.css
-
-# Perform imports here:
+### Imports
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
@@ -19,13 +16,13 @@ import plotly.express as px
 import numpy as np
 import pandas as pd
 
-from datetime import datetime
-import pdb
-
 import networkx as nx
 from pyvis import network as net
 
+from datetime import datetime
+import pdb
 import json
+
 
 ### Data import and preprocessing
 
@@ -114,7 +111,7 @@ def sim_outgoing_two_nodes(sim_dict,a,b):
 def sim_incoming_two_nodes(sim_dict,a,b):
     return sim_dict[a][b]
 
-### Define app
+### App definition
     
 app = dash.Dash(__name__)
 app.title = 'Van Lanschot Dashboard'
@@ -123,8 +120,6 @@ colors = {
     'background': '#111111',
     'text': '#7FDBFF'
 }
-
-### App Layout
 
 app.layout=html.Div([
         html.Div(
@@ -337,17 +332,15 @@ app.layout=html.Div([
     [Input('input_1','value')])
 def update_key_2(key_1):
     
-    df_filtered_1=filter_df(key_1)
+    df_key_1=filter_df(key_1)
     
-    if (df_filtered_1.empty) or (key_1 is None):
+    if (df_key_1.empty) or (key_1 is None):
         print("Preventing update of key 2")
         raise PreventUpdate
+    
+    df_key_1['other_key']=np.where(df_key_1['a_key']==key_1,df_key_1['b_key'],df_key_1['a_key'])
+    key_2=df_key_1['other_key'].groupby(df_key_1['other_key']).count().idxmax()
         
-    unique_accounts_filtered=df_filtered_1['a_key'].append(df_filtered_1['b_key'],ignore_index=True).unique()
-    unique_accounts_filtered_without_key_1=np.delete(unique_accounts_filtered,np.where(unique_accounts_filtered==key_1))    
-    
-    key_2 = unique_accounts_filtered_without_key_1[0]
-    
     return key_2
 
 
@@ -436,33 +429,12 @@ def update_intermediate_div(key_1,key_2,start_date,end_date,amount_range):
     df_key_2=filter_df(key_2,sd,ed,amount_range[0],amount_range[1]).sort_values('datee')
     df_key_1_2=df_key_1[(df_key_1['a_key']==key_2) | (df_key_1['b_key']==key_2)].sort_values('datee')
     
-    df_key_1['cum_amount']=df_key_1['boeking_eur'].cumsum()
-    df_key_2['cum_amount']=df_key_2['boeking_eur'].cumsum()
-    df_key_1_2['cum_amount']=df_key_1_2['boeking_eur'].cumsum()
-    
-    df_key_1['other_key']=np.where(df_key_1['a_key']==key_1,df_key_1['b_key'],df_key_1['a_key'])
-    df_key_2['other_key']=np.where(df_key_2['a_key']==key_2,df_key_2['b_key'],df_key_2['a_key'])
-    df_key_1_2['other_key']=np.where(df_key_1_2['a_key']==key_1,df_key_1_2['b_key'],df_key_1_2['a_key'])
-    
-    accounts_key_1=df_key_1['a_key'].append(df_key_1['b_key'],ignore_index=True)
-    accounts_key_2=df_key_2['a_key'].append(df_key_2['b_key'],ignore_index=True)
-    accounts_combined=accounts_key_1.append(accounts_key_2,ignore_index=True)
-    unique_accounts_combined=accounts_combined.unique()
-    
-    dcs=px.colors.qualitative.D3 # discrete color scale
-    unique_account_colors={acc:dcs[i%len(dcs)] for (i,acc) in enumerate(unique_accounts_combined)}   
-  
-    df_key_1['col']=df_key_1['other_key'].apply(lambda acc:unique_account_colors[acc])
-    df_key_2['col']=df_key_2['other_key'].apply(lambda acc:unique_account_colors[acc])
-    df_key_1_2['col']=df_key_1_2['other_key'].apply(lambda acc:unique_account_colors[acc])
-    
     datasets = {
          'df_key_1': df_key_1.to_json(orient='split', date_format='iso'),
          'df_key_2': df_key_2.to_json(orient='split', date_format='iso'),
          'df_key_1_2': df_key_1_2.to_json(orient='split', date_format='iso'),
          'key_1':key_1,
          'key_2':key_2,
-         'unique_account_colors':unique_account_colors
      }
     
     return json.dumps(datasets)
@@ -485,7 +457,6 @@ def update_stat_tables(n_clicks,jsonified_data):
     datasets=json.loads(jsonified_data)
     df_key_1=pd.read_json(datasets['df_key_1'],orient='split')
     key_1=datasets['key_1']
-    key_2=datasets['key_2']
     
     df_key_1_sent=df_key_1[df_key_1['originn']==key_1]
     df_key_1_received=df_key_1[df_key_1['dest']==key_1]
@@ -556,7 +527,9 @@ def update_cum_graphs(n_clicks,jsonified_data):
     key_1=datasets['key_1']
     key_2=datasets['key_2']
     
-    unique_account_colors=datasets['unique_account_colors']
+    df_key_1['cum_amount']=df_key_1['boeking_eur'].cumsum()
+    df_key_2['cum_amount']=df_key_2['boeking_eur'].cumsum()
+    df_key_1_2['cum_amount']=df_key_1_2['boeking_eur'].cumsum()
     
     # make subplots
     fig = make_subplots(
@@ -580,7 +553,7 @@ def update_cum_graphs(n_clicks,jsonified_data):
                 'line': {'width': 0.5, 'color': 'white'}
             },
             line={
-                'color':unique_account_colors[key_1] if key_1 in unique_account_colors else None
+                # 'color':unique_account_colors[key_1] if key_1 in unique_account_colors else None
             },
             name='Cumulative Transactions'
         ),     
@@ -601,7 +574,7 @@ def update_cum_graphs(n_clicks,jsonified_data):
                 'line': {'width': 0.5, 'color': 'white'}
             },
             line={
-                'color':unique_account_colors[key_2] if key_2 in unique_account_colors else None
+                # 'color':unique_account_colors[key_2] if key_2 in unique_account_colors else None
             },
             name='Cumulative Transactions'
         ),
@@ -622,7 +595,7 @@ def update_cum_graphs(n_clicks,jsonified_data):
                 'line': {'width': 0.5, 'color': 'white'}
             },
             line={
-                'color':unique_account_colors[key_1] if key_1 in unique_account_colors else None
+                # 'color':unique_account_colors[key_1] if key_1 in unique_account_colors else None
             },
             name='Cumulative Transactions'
         ),
@@ -671,7 +644,22 @@ def update_time_graphs(n_clicks,jsonified_data):
     key_1=datasets['key_1']
     key_2=datasets['key_2']
     
-    unique_account_colors=datasets['unique_account_colors']
+    # assign colors to different accounts
+    df_key_1['other_key']=np.where(df_key_1['a_key']==key_1,df_key_1['b_key'],df_key_1['a_key'])
+    df_key_2['other_key']=np.where(df_key_2['a_key']==key_2,df_key_2['b_key'],df_key_2['a_key'])
+    df_key_1_2['other_key']=np.where(df_key_1_2['a_key']==key_1,df_key_1_2['b_key'],df_key_1_2['a_key'])
+    
+    accounts_key_1=df_key_1['a_key'].append(df_key_1['b_key'],ignore_index=True)
+    accounts_key_2=df_key_2['a_key'].append(df_key_2['b_key'],ignore_index=True)
+    accounts_combined=accounts_key_1.append(accounts_key_2,ignore_index=True)
+    unique_accounts_combined=accounts_combined.unique()
+    
+    dcs=px.colors.qualitative.D3 # discrete color scale
+    unique_account_colors={acc:dcs[i%len(dcs)] for (i,acc) in enumerate(unique_accounts_combined)}   
+  
+    df_key_1['col']=df_key_1['other_key'].apply(lambda acc:unique_account_colors[acc])
+    df_key_2['col']=df_key_2['other_key'].apply(lambda acc:unique_account_colors[acc])
+    df_key_1_2['col']=df_key_1_2['other_key'].apply(lambda acc:unique_account_colors[acc])
     
     # make subplots
     fig = make_subplots(
@@ -780,26 +768,25 @@ def update_frequency_graphs(n_clicks,jsonified_data):
     key_1=datasets['key_1']
     key_2=datasets['key_2']
     
-    unique_account_colors=datasets['unique_account_colors']
-     
-
+    # convert strings to dates
     df_key_1['datee']=pd.to_datetime(df_key_1['datee']).dt.date
     df_key_2['datee']=pd.to_datetime(df_key_2['datee']).dt.date
     df_key_1_2['datee']=pd.to_datetime(df_key_1_2['datee']).dt.date
     
+    # calculate consecutive transaction intervals
     intervals_1=(df_key_1['datee']-df_key_1['datee'].shift(1)).dropna().apply(lambda x: x.days)
     intervals_2=(df_key_2['datee']-df_key_2['datee'].shift(1)).dropna().apply(lambda x: x.days)
     intervals_1_2=(df_key_1_2['datee']-df_key_1_2['datee'].shift(1)).dropna().apply(lambda x: x.days)
 
     # make subplots
-    fig_freq = make_subplots(
+    fig = make_subplots(
         rows=3,
         cols=1,
         vertical_spacing=0.02
     )
     
     # key_1
-    fig_freq.add_trace(go.Histogram(
+    fig.add_trace(go.Histogram(
             x=intervals_1,
             name='Intervals'
         ),
@@ -808,7 +795,7 @@ def update_frequency_graphs(n_clicks,jsonified_data):
     )
        
     # key_2
-    fig_freq.add_trace(go.Histogram(
+    fig.add_trace(go.Histogram(
             x=intervals_2,
             name='Intervals'
         ),
@@ -817,7 +804,7 @@ def update_frequency_graphs(n_clicks,jsonified_data):
     )
         
     # key_1_2
-    fig_freq.add_trace(go.Histogram(
+    fig.add_trace(go.Histogram(
         x=intervals_1_2,
         name='Intervals'
         ),
@@ -826,15 +813,15 @@ def update_frequency_graphs(n_clicks,jsonified_data):
     )
     
     # xaxis properties
-    fig_freq.update_xaxes(title_text="Interval (days)", row=3, col=1)
+    fig.update_xaxes(title_text="Interval (days)", row=3, col=1)
     
     # yaxis properties
-    fig_freq.update_yaxes(title_text="Frequency", row=1, col=1)
-    fig_freq.update_yaxes(title_text="Frequency", row=2, col=1)
-    fig_freq.update_yaxes(title_text="Frequency", row=3, col=1)
+    fig.update_yaxes(title_text="Frequency", row=1, col=1)
+    fig.update_yaxes(title_text="Frequency", row=2, col=1)
+    fig.update_yaxes(title_text="Frequency", row=3, col=1)
     
     # layout
-    fig_freq.update_layout(
+    fig.update_layout(
         autosize=False,
         # width=800,
         # height=800,
@@ -843,8 +830,8 @@ def update_frequency_graphs(n_clicks,jsonified_data):
         showlegend=False
     )
     
-    print('Done updating graphs')       
-    return fig_freq
+    return fig
+
 
 # Update network based on all inputs
 @app.callback(
@@ -952,6 +939,7 @@ var options = {
     pyvis_graph.save_graph(output_filename)
     return open(output_filename, 'r').read()
 
+
 # Update similarity of key_1 and key_2 based on outgoing and incoming edges
 from itertools import product
 @app.callback(Output('textArea','children'),
@@ -1001,6 +989,8 @@ def update_output_div_similarity(n_clicks,Account_1,Account_2,start_date,end_dat
    
     sim1_2=str(sim_outgoing_two_nodes(sim_outgoing,Account_1,Account_2))+" "+str((sim_incoming_two_nodes(sim_incoming,Account_1,Account_2)))
     return sim1_2
-### Run app
+
+
+### Run App
 if __name__ == '__main__':
     app.run_server(debug=True)

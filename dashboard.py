@@ -462,10 +462,6 @@ def update_intermediate_div(key_1,key_2,start_date,end_date,amount_range):
          'df_key_1_2': df_key_1_2.to_json(orient='split', date_format='iso'),
          'key_1':key_1,
          'key_2':key_2,
-         # 'start_date':sd,
-         # 'end_date':ed,
-         # 'start_amount':amount_range[0],
-         # 'end_amount':amount_range[1]
          'unique_account_colors':unique_account_colors
      }
     
@@ -478,11 +474,13 @@ def update_intermediate_div(key_1,key_2,start_date,end_date,amount_range):
     [State('intermediate_div','children')])
 def update_stat_tables(n_clicks,jsonified_data):
     
-    if ((n_clicks is None) or (jsonified_data is None)):
-        print('Preventing update of stat tables')
-        raise PreventUpdate
-        
-    # pdb.set_trace()
+    # error checks
+    if ((n_clicks is None) or (jsonified_data == [])):
+        print('Returning dash.no_update')
+        return dash.no_update
+    
+    # if jsonified_data==[]: return dash.no_update
+    
     # get variables from jsonidied_date
     datasets=json.loads(jsonified_data)
     df_key_1=pd.read_json(datasets['df_key_1'],orient='split')
@@ -544,9 +542,10 @@ def update_stat_tables(n_clicks,jsonified_data):
     [State('intermediate_div','children')])
 def update_cum_graphs(n_clicks,jsonified_data):
     
-    if ((n_clicks is None) or (jsonified_data is None)):
-        print('Preventing update of stat tables')
-        raise PreventUpdate
+    # error checks
+    if ((n_clicks is None) or (jsonified_data == [])):
+        print('Returning dash.no_update')
+        return dash.no_update
         
     # get variables from jsonidied_data
     datasets=json.loads(jsonified_data)
@@ -658,9 +657,10 @@ def update_cum_graphs(n_clicks,jsonified_data):
     [State('intermediate_div','children')])
 def update_time_graphs(n_clicks,jsonified_data):
     
-    if ((n_clicks is None) or (jsonified_data is None)):
-        print('Preventing update of stat tables')
-        raise PreventUpdate
+    # error checks
+    if ((n_clicks is None) or (jsonified_data == [])):
+        print('Returning dash.no_update')
+        return dash.no_update
         
     # get variables from jsonidied_data
     datasets=json.loads(jsonified_data)
@@ -719,8 +719,7 @@ def update_time_graphs(n_clicks,jsonified_data):
         row=2,
         col=1
     )
-    
-    
+       
     # key_1_2
     fig.add_trace(
         go.Scatter(
@@ -767,13 +766,10 @@ def update_time_graphs(n_clicks,jsonified_data):
     [State('intermediate_div','children')])
 def update_frequency_graphs(n_clicks,jsonified_data):
     
-    if ((n_clicks is None) or (jsonified_data is None)):
-        print('Preventing update of stat tables')
-        raise PreventUpdate
-        
-    if jsonified_data is None:
-        print('Preventing update of frequency graphs')
-        raise PreventUpdate
+    # error checks
+    if ((n_clicks is None) or (jsonified_data == [])):
+        print('Returning dash.no_update')
+        return dash.no_update
     
     # get variables from jsonidied_data
     datasets=json.loads(jsonified_data)

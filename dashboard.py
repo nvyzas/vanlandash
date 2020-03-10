@@ -25,6 +25,7 @@ import pdb
 import networkx as nx
 from pyvis import network as net
 
+import json
 
 ### Data import and preprocessing
 
@@ -222,6 +223,21 @@ app.layout=html.Div([
                             n_clicks=0
                         )
                     ]
+                ),
+                html.Div(
+                    style={
+                        'display':'none'
+                    },
+                    id='intermediate_div',
+                    children=[]
+                ),
+                html.Div(
+                    className="col-1",
+                    style={
+                        'display':'inline'
+                    },
+                    id='test_div',
+                    children=[]
                 )
             ]
         ),
@@ -257,10 +273,18 @@ app.layout=html.Div([
                     children=[
                         dcc.Tabs([
                             dcc.Tab(
-                                label='Time',
+                                label='Time (1)',
                                 children=[
                                     dcc.Graph(
                                         id='timegraph'
+                                    )
+                                ]
+                            ),
+                            dcc.Tab(
+                                label='Time (2)',
+                                children=[
+                                    dcc.Graph(
+                                        id='cumgraph'
                                     )
                                 ]
                             ),
@@ -269,6 +293,24 @@ app.layout=html.Div([
                                 children=[
                                     dcc.Graph(
                                         id='freqgraph'
+                                    )
+                                ]
+                            ),
+                            dcc.Tab(
+                                label='Similarity', 
+                                children=[
+                                    dcc.Graph(
+                                        id='sim_table'
+                                    )
+                                ]
+                            ),
+                            dcc.Tab(
+                                label='Stats', 
+                                children=[
+                                    html.Div(
+                                        # className='col-6',
+                                        id='stats_table_div',
+                                        # style={'width': '100%','height':'100%'}
                                     )
                                 ]
                             )
@@ -302,6 +344,7 @@ def update_key_2(key_1):
     print('Done updating key 2')
     return key_2
 
+
 # Update dates and amounts based on key_1 and key_2
 @app.callback(
     [Output('datepicker','min_date_allowed'),
@@ -334,8 +377,8 @@ def update_dates_and_amounts(key_1,key_2):
     min_date_2=df_key_2['datee'].min()
     max_date_2=df_key_2['datee'].max()
     
-    min_date_12=min_date_1 if (min_date_1<=min_date_2) else min_date_2
-    max_date_12=max_date_1 if (max_date_1>=max_date_2) else max_date_2
+    min_date_12=min_date_1 if (min_date_1<min_date_2) else min_date_2
+    max_date_12=max_date_1 if (max_date_1>max_date_2) else max_date_2
     
     # calculate min and max absolute amounts
     
@@ -363,7 +406,102 @@ def update_amount_text(value):
         raise PreventUpdate
 
     return 'Min: {}'.format(value[0]),'Max: {}'.format(value[1])
-                        
+
+# Update intermediate div
+@app.callback(
+    Output('intermediate_div','children'),
+    [Input('input_1','value'),
+     Input('input_2','value'),
+     Input('datepicker','start_date'),
+     Input('datepicker','end_date'),
+     Input('amount-slider','value')])
+def update_intermediate_div(key_1,key_2,start_date,end_date,amount_range):
+    print('Updating graphs')
+    
+    if ((key_1 is None) or (key_2 is None) or (start_date is None) or (end_date is None) or (amount_range is None)):
+        print('Preventing update of time and frequency graphs')
+        raise PreventUpdate
+        
+    # Calculate necessary variables
+    
+    sd=datetime.strptime(start_date.split(' ')[0],'%Y-%m-%d').date()
+    ed=datetime.strptime(end_date.split(' ')[0],'%Y-%m-%d').date()
+    
+    df_key_1=filter_df(key_1,sd,ed,amount_range[0],amount_range[1]).sort_values('datee')   
+    df_key_2=filter_df(key_2,sd,ed,amount_range[0],amount_range[1]).sort_values('datee')
+    df_key_12=df_key_1[(df_key_1['a_key']==key_2) | (df_key_1['b_key']==key_2)].sort_values('datee')
+    
+    datasets = {
+         'df_key_1': df_key_1.to_json(orient='split', date_format='iso'),
+         'df_key_2': df_key_2.to_json(orient='split', date_format='iso'),
+         'df_key_12': df_key_12.to_json(orient='split', date_format='iso'),
+         'key_1':key_1,
+         'key_2':key_2,
+     }
+    
+    return json.dumps(datasets)
+    
+@app.callback(
+    Output('stats_table_div','children'),
+    [Input('intermediate_div','children')])
+def update_stats(jsonified_data):
+    
+    # get variables from jsonidied_date
+    datasets=json.loads(jsonified_data)
+    df_key_1=pd.read_json(datasets['df_key_1'],orient='split')
+    key_1=datasets['key_1']
+    key_2=datasets['key_2']
+    
+    df_key_1_sent=df_key_1[df_key_1['originn']==key_1]
+    df_key_1_received=df_key_1[df_key_1['dest']==key_1]
+    
+    stats_df_key_1=pd.concat(
+         [df_key_1_received['amount'].describe(),
+         df_key_1_sent['amount'].describe(),
+         df_key_1['boeking_eur'].describe()],
+         axis=1
+    ).reset_index()
+    stats_df_key_1.columns=['index','Incoming','Outgoing','All']
+    
+    columns=[
+        {"name" : key_1,"id" : 'index'},
+        {"name" : 'Incoming', "id" : 'Incoming'},
+        {"name" : 'Outgoing', "id" :'Outgoing'},
+        {"name" : 'All', "id" : 'All'}
+    ]
+    data=stats_df_key_1.round(2).to_dict('records')
+    
+    table=dash_table.DataTable(
+        columns=columns,
+        data=data,
+        style_as_list_view=True,
+        style_header={
+            'backgroundColor': 'grey',
+            'color':'white',
+            'fontWeight': 'bold'
+        },
+        style_data_conditional=[
+            {
+                'if': {
+                    'column_id': 'Incoming',
+                },
+                'backgroundColor': '#5bc0de',
+                'color': 'white',
+            },
+            {
+                'if': {
+                    'column_id': 'Outgoing',
+                },
+                'backgroundColor': '#0275d8',
+                'color': 'white',
+            }
+        ]
+    )
+        
+    # pdb.set_trace()
+
+    return table
+                      
 # Update time and frequency graphs based on all inputs
 @app.callback(
     [Output('stats-table-div','children'),

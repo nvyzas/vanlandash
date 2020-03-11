@@ -64,7 +64,6 @@ def filter_df(key,start_date=min_date,end_date=max_date,start_amount=min_abs_amo
     
     return df[condition]
 
-# def set_test_case(key_1,key_2,start_date,end_date,start_amount,end_amount):
 
 ### Network similarity functions
 
@@ -235,12 +234,11 @@ app.layout=html.Div([
                     children=[]
                 ),
                 html.Div(
-                    className="col-1",
                     style={
-                        'display':'inline'
+                        'display':'none'
                     },
                     id='test_div',
-                    children=[]
+                    children='A10'
                 )
             ]
         ),
@@ -251,7 +249,6 @@ app.layout=html.Div([
                     className='col-6',
                     children=[
                         html.Div(
-                            # className='col-6',
                             children=[
                                 html.Iframe(
                                     id='mapx', 
@@ -262,7 +259,6 @@ app.layout=html.Div([
                             style={'width': '100%','height':'100%'}
                         ),
                         html.Div(
-                            # className='col-6',
                             id='stats-table-div',
                             children=[
                             ],
@@ -334,6 +330,23 @@ app.layout=html.Div([
     
 ### Callbacks
 
+# def set_test_case(key_1,key_2,start_date,end_date,start_amount,end_amount):
+
+# Update key_1
+@app.callback(
+    Output('input_1','value'),
+    [Input('test_div','children')])
+def update_key_1(key_1):
+        
+    if key_1 not in unique_accounts:
+        idx=np.searchsorted(unique_accounts,key_1)
+        if idx==0 | idx==len(unique_accounts):
+            return dash.no_update
+        else:
+            return unique_accounts[idx-1]
+    else:
+        return key_1        
+        
 # Update key_2 based on key_1
 @app.callback(
     Output('input_2','value'),
@@ -674,7 +687,7 @@ def update_time_graphs(n_clicks,jsonified_data):
     df_key_1['col']=df_key_1['other_key'].apply(lambda acc:unique_account_colors[acc])
     df_key_2['col']=df_key_2['other_key'].apply(lambda acc:unique_account_colors[acc])
     df_key_1_2['col']=df_key_1_2['other_key'].apply(lambda acc:unique_account_colors[acc])
-    pdb.set_trace()
+    
     # make subplots
     fig = make_subplots(
         rows=3,

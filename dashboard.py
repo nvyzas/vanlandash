@@ -41,8 +41,8 @@ print('Done')
 print('Finding min and max dates and amounts')
 min_date=df['datee'].min()
 max_date=df['datee'].max()
-min_abs_amount=df['boeking_eur'].abs().min()
-max_abs_amount=df['boeking_eur'].abs().max()
+min_abs_amount=df['amount'].min()
+max_abs_amount=df['amount'].max()
 print('Done')
 
 ### Utility functions
@@ -56,7 +56,11 @@ def filter_df(key,
     date_condition=(df['datee']>=start_date) & (df['datee']<=end_date)
     amount_condition=(df['amount']>=start_amount) & (df['amount']<=end_amount)
     condition=key_condition & date_condition & amount_condition
+    
     return df[condition]
+
+# def set_test_case(key_1,key_2,start_date,end_date,start_amount,end_amount):
+    
 
 ### Network similarity functions
 
@@ -323,7 +327,7 @@ app.layout=html.Div([
         )
 ])
 
-
+    
 ### Callbacks
 
 # Update key_2 based on key_1
@@ -380,11 +384,11 @@ def update_dates_and_amounts(key_1,key_2):
     
     # calculate min and max absolute amounts
     
-    min_amount_1=df_key_1['boeking_eur'].abs().min()
-    max_amount_1=df_key_1['boeking_eur'].abs().max()
+    min_amount_1=df_key_1['amount'].min()
+    max_amount_1=df_key_1['amount'].max()
     
-    min_amount_2=df_key_2['boeking_eur'].abs().min()
-    max_amount_2=df_key_2['boeking_eur'].abs().max()
+    min_amount_2=df_key_2['amount'].min()
+    max_amount_2=df_key_2['amount'].max()
     
     min_amount_12=min_amount_1 if min_amount_1<=min_amount_2 else min_amount_2
     max_amount_12=max_amount_1 if max_amount_1>=max_amount_2 else max_amount_2
@@ -429,6 +433,15 @@ def update_intermediate_div(key_1,key_2,start_date,end_date,amount_range):
     df_key_2=filter_df(key_2,sd,ed,amount_range[0],amount_range[1]).sort_values('datee')
     df_key_1_2=df_key_1[(df_key_1['a_key']==key_2) | (df_key_1['b_key']==key_2)].sort_values('datee')
     
+    df_key_1['other_key']=np.where(df_key_1['a_key']==key_1,df_key_1['b_key'],df_key_1['a_key'])
+    df_key_2['other_key']=np.where(df_key_2['a_key']==key_2,df_key_2['b_key'],df_key_2['a_key'])
+    df_key_1_2['other_key']=np.where(df_key_1_2['a_key']==key_1,df_key_1_2['b_key'],df_key_1_2['a_key'])
+  
+    df_key_1['amount_signed']=np.where(df_key_1['other_key']==df_key_1['originn'],df_key_1['amount'],df_key_1['amount'].apply(lambda x:-x))
+    df_key_2['amount_signed']=np.where(df_key_2['other_key']==df_key_2['originn'],df_key_2['amount'],df_key_2['amount'].apply(lambda x:-x))
+    df_key_1_2['amount_signed']=np.where(df_key_1_2['other_key']==df_key_1_2['originn'],df_key_1_2['amount'],df_key_1_2['amount'].apply(lambda x:-x))
+
+    
     datasets = {
          'df_key_1': df_key_1.to_json(orient='split', date_format='iso'),
          'df_key_2': df_key_2.to_json(orient='split', date_format='iso'),
@@ -461,11 +474,11 @@ def update_stat_tables(n_clicks,jsonified_data):
     df_key_1_sent=df_key_1[df_key_1['originn']==key_1]
     df_key_1_received=df_key_1[df_key_1['dest']==key_1]
     
-    stats_df_key_1=pd.concat(
-         [df_key_1_received['amount'].describe(),
-         df_key_1_sent['amount'].describe(),
-         df_key_1['boeking_eur'].describe()],
-         axis=1
+    stats_df_key_1=pd.concat([
+        df_key_1_received['amount'].describe(),
+        df_key_1_sent['amount'].describe(),
+        df_key_1['amount_signed'].describe()],
+        axis=1
     ).reset_index()
     stats_df_key_1.columns=['index','Incoming','Outgoing','All']
     
@@ -527,9 +540,9 @@ def update_cum_graphs(n_clicks,jsonified_data):
     key_1=datasets['key_1']
     key_2=datasets['key_2']
     
-    df_key_1['cum_amount']=df_key_1['boeking_eur'].cumsum()
-    df_key_2['cum_amount']=df_key_2['boeking_eur'].cumsum()
-    df_key_1_2['cum_amount']=df_key_1_2['boeking_eur'].cumsum()
+    df_key_1['cum_amount']=df_key_1['amount_signed'].cumsum()
+    df_key_2['cum_amount']=df_key_2['amount_signed'].cumsum()
+    df_key_1_2['cum_amount']=df_key_1_2['amount_signed'].cumsum()
     
     # make subplots
     fig = make_subplots(
@@ -645,10 +658,7 @@ def update_time_graphs(n_clicks,jsonified_data):
     key_2=datasets['key_2']
     
     # assign colors to different accounts
-    df_key_1['other_key']=np.where(df_key_1['a_key']==key_1,df_key_1['b_key'],df_key_1['a_key'])
-    df_key_2['other_key']=np.where(df_key_2['a_key']==key_2,df_key_2['b_key'],df_key_2['a_key'])
-    df_key_1_2['other_key']=np.where(df_key_1_2['a_key']==key_1,df_key_1_2['b_key'],df_key_1_2['a_key'])
-    
+      
     accounts_key_1=df_key_1['a_key'].append(df_key_1['b_key'],ignore_index=True)
     accounts_key_2=df_key_2['a_key'].append(df_key_2['b_key'],ignore_index=True)
     accounts_combined=accounts_key_1.append(accounts_key_2,ignore_index=True)
@@ -660,7 +670,7 @@ def update_time_graphs(n_clicks,jsonified_data):
     df_key_1['col']=df_key_1['other_key'].apply(lambda acc:unique_account_colors[acc])
     df_key_2['col']=df_key_2['other_key'].apply(lambda acc:unique_account_colors[acc])
     df_key_1_2['col']=df_key_1_2['other_key'].apply(lambda acc:unique_account_colors[acc])
-    
+    pdb.set_trace()
     # make subplots
     fig = make_subplots(
         rows=3,
@@ -674,13 +684,13 @@ def update_time_graphs(n_clicks,jsonified_data):
     fig.add_trace(
         go.Scatter(
             x=df_key_1['datee'],
-            y=df_key_1['boeking_eur'],
+            y=df_key_1['amount_signed'],
             text=df_key_1['other_key'],
             mode='markers',
             marker={
                 'color':df_key_1['col'],
                 'size': 10,
-                'opacity': 0.5,
+                'opacity': 0.25,
                 'line': {'width': 0.5, 'color': 'white'}
             },
             name='Transactions'
@@ -693,13 +703,13 @@ def update_time_graphs(n_clicks,jsonified_data):
     fig.add_trace(
         go.Scatter(
             x=df_key_2['datee'],
-            y=df_key_2['boeking_eur'],
+            y=df_key_2['amount_signed'],
             text=df_key_2['other_key'],
             mode='markers',
             marker={
                 'color':df_key_2['col'],
                 'size': 10,
-                'opacity': 0.5,
+                'opacity': 0.25,
                 'line': {'width': 0.5, 'color': 'white'}
             },
             name='Transactions'
@@ -712,13 +722,13 @@ def update_time_graphs(n_clicks,jsonified_data):
     fig.add_trace(
         go.Scatter(
             x=df_key_1_2['datee'],
-            y=df_key_1_2['boeking_eur'],
+            y=df_key_1_2['amount_signed'],
             text=df_key_1_2['other_key'],
             mode='markers',
             marker={
                 'color':df_key_1_2['col'],
                 'size': 10,
-                'opacity': 0.5,
+                'opacity': 0.25,
                 'line': {'width': 0.5, 'color': 'white'}
             },
             name='Transactions'
@@ -993,4 +1003,4 @@ def update_output_div_similarity(n_clicks,Account_1,Account_2,start_date,end_dat
 
 ### Run App
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server(debug=False)

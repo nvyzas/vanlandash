@@ -47,20 +47,24 @@ print('Done')
 
 ### Utility functions
 
-def filter_df(key,
-              start_date=min_date,
-              end_date=max_date,
-              start_amount=min_abs_amount,
-              end_amount=max_abs_amount):
-    key_condition=((df['a_key']==key) | (df['b_key']==key))
-    date_condition=(df['datee']>=start_date) & (df['datee']<=end_date)
-    amount_condition=(df['amount']>=start_amount) & (df['amount']<=end_amount)
-    condition=key_condition & date_condition & amount_condition
+def filter_df(key,start_date=min_date,end_date=max_date,start_amount=min_abs_amount,end_amount=max_abs_amount):
+    
+    # key-based filtering
+    condition=((df['a_key']==key) | (df['b_key']==key))
+    
+    # date-based filtering
+    if (start_date is not None and end_date is not None):
+        date_condition=(df['datee']>=start_date) & (df['datee']<=end_date)
+        condition=condition & date_condition
+    
+    # amount-based filtering
+    if (start_amount is not None and end_amount is not None):    
+        amount_condition=(df['amount']>=start_amount) & (df['amount']<=end_amount)
+        condition=condition & amount_condition
     
     return df[condition]
 
 # def set_test_case(key_1,key_2,start_date,end_date,start_amount,end_amount):
-    
 
 ### Network similarity functions
 
@@ -1003,4 +1007,4 @@ def update_output_div_similarity(n_clicks,Account_1,Account_2,start_date,end_dat
 
 ### Run App
 if __name__ == '__main__':
-    app.run_server(debug=False)
+    app.run_server(debug=True)

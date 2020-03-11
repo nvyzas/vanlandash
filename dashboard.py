@@ -19,7 +19,7 @@ import pandas as pd
 import networkx as nx
 from pyvis import network as net
 
-from datetime import datetime
+from datetime import datetime,date
 import pdb
 import json
 
@@ -44,6 +44,15 @@ max_date=df['datee'].max()
 min_abs_amount=df['amount'].min()
 max_abs_amount=df['amount'].max()
 print('Done')
+
+
+### Test-cases
+test_cases=[
+    [], # case 0 (Default test in which app is initialized)
+    ['A36860','A26417',date(2019,6,18),date(2019,6,24),min_abs_amount,max_abs_amount], # case 1
+    ['A1000','A44134',date(2019,6,25),date(2019,7,1),min_abs_amount,max_abs_amount], # case 2
+     ]
+
 
 ### Utility functions
 
@@ -177,7 +186,7 @@ app.layout=html.Div([
                             display_format='DD MM YYYY',
                             start_date_placeholder_text="Start Date",
                             end_date_placeholder_text="End Date",
-                            calendar_orientation='horizontal'
+                            calendar_orientation='vertical'
                         )  
                     ]
                 ),
@@ -227,6 +236,18 @@ app.layout=html.Div([
                     ]
                 ),
                 html.Div(
+                    className="col-1",
+                    children=[
+                        dcc.Dropdown(
+                            id='test_case_dropdown',
+                            options=[
+                                {'label':i,'value':i} for i in range(len(test_cases))
+                            ],
+                            value=0
+                        )
+                    ]
+                ),
+                html.Div(
                     style={
                         'display':'none'
                     },
@@ -237,8 +258,8 @@ app.layout=html.Div([
                     style={
                         'display':'none'
                     },
-                    id='test_div',
-                    children='A10'
+                    id='initialization_div',
+                    children='A10' # initialize key_1 from here
                 )
             ]
         ),
@@ -255,12 +276,6 @@ app.layout=html.Div([
                                     width='100%', 
                                     height='100%'
                                 )
-                            ],
-                            style={'width': '100%','height':'100%'}
-                        ),
-                        html.Div(
-                            id='stats-table-div',
-                            children=[
                             ],
                             style={'width': '100%','height':'100%'}
                         )
@@ -330,17 +345,18 @@ app.layout=html.Div([
     
 ### Callbacks
 
-# def set_test_case(key_1,key_2,start_date,end_date,start_amount,end_amount):
-
 # Update key_1
 @app.callback(
     Output('input_1','value'),
-    [Input('test_div','children')])
-def update_key_1(key_1):
-        
+    [Input('initialization_div','children'),
+     Input('test_case_dropdown','value')])
+def update_key_1(key_1,test):
+    
+    if test!=0: return test_cases[test][0]
+    
     if key_1 not in unique_accounts:
         idx=np.searchsorted(unique_accounts,key_1)
-        if idx==0 | idx==len(unique_accounts):
+        if (idx==0) or (idx==len(unique_accounts)):
             return dash.no_update
         else:
             return unique_accounts[idx-1]
@@ -350,8 +366,11 @@ def update_key_1(key_1):
 # Update key_2 based on key_1
 @app.callback(
     Output('input_2','value'),
-    [Input('input_1','value')])
-def update_key_2(key_1):
+    [Input('input_1','value'),
+     Input('test_case_dropdown','value')])
+def update_key_2(key_1,test):
+    
+    if test!=0: return test_cases[test][1]
     
     df_key_1=filter_df(key_1)
     
@@ -369,16 +388,19 @@ def update_key_2(key_1):
 @app.callback(
     [Output('datepicker','min_date_allowed'),
      Output('datepicker','max_date_allowed'),
+     Output('datepicker','initial_visible_month'),
      Output('datepicker','start_date'),
      Output('datepicker','end_date'),
-     Output('datepicker','initial_visible_month'),
      Output('amount-slider','min'),
      Output('amount-slider','max'),
      Output('amount-slider','value')],
     [Input('input_1','value'),
-     Input('input_2','value')])
-def update_dates_and_amounts(key_1,key_2):
- 
+     Input('input_2','value'),
+     Input('test_case_dropdown','value')])
+def update_dates_and_amounts(key_1,key_2,test):
+    
+    if test!=0: return min_date,max_date,test_cases[test][2],test_cases[test][2],test_cases[test][3],min_abs_amount,max_abs_amount,[test_cases[test][4],test_cases[test][5]]
+    
     # get global df filtered according to key_1 and key_2
     
     df_key_1=filter_df(key_1)
@@ -410,7 +432,7 @@ def update_dates_and_amounts(key_1,key_2):
     min_amount_12=min_amount_1 if min_amount_1<=min_amount_2 else min_amount_2
     max_amount_12=max_amount_1 if max_amount_1>=max_amount_2 else max_amount_2
     
-    return min_date_12,max_date_12,min_date_12,max_date_12,min_date_12,min_amount_12,max_amount_12,[min_amount_12,max_amount_12]
+    return min_date_12,max_date_12,min_date_12,min_date_12,max_date_12,min_amount_12,max_amount_12,[min_amount_12,max_amount_12]
 
 
 # Update text representing the min and max value of amount slider
@@ -442,7 +464,6 @@ def update_intermediate_div(key_1,key_2,start_date,end_date,amount_range):
         raise PreventUpdate
         
     # Calculate necessary variables
-    
     sd=datetime.strptime(start_date.split(' ')[0],'%Y-%m-%d').date()
     ed=datetime.strptime(end_date.split(' ')[0],'%Y-%m-%d').date()
     
@@ -1020,4 +1041,4 @@ def update_output_div_similarity(n_clicks,Account_1,Account_2,start_date,end_dat
 
 ### Run App
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server(debug=False)

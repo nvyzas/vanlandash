@@ -15,12 +15,13 @@ import plotly.express as px
 import plotly.graph_objs as go
 from plotly.subplots import make_subplots
 import plotly.express as px
-
+import dash_table
 import numpy as np
 import pandas as pd
 
 from datetime import datetime
 import pdb
+from itertools import product
 
 import networkx as nx
 from pyvis import network as net
@@ -57,6 +58,17 @@ def filter_df(key,
     key_condition=((df['a_key']==key) | (df['b_key']==key))
     date_condition=(df['datee']>=start_date) & (df['datee']<=end_date)
     amount_condition=(df['boeking_eur']>=start_amount) & (df['boeking_eur']<=end_amount)
+    condition=key_condition & date_condition & amount_condition
+    return df[condition]
+
+def filter_net(key,
+              start_date=min_date,
+              end_date=max_date,
+              start_amount=min_abs_amount,
+              end_amount=max_abs_amount):
+    key_condition=((df['originn']==key) | (df['dest']==key))
+    date_condition=(df['datee']>=start_date) & (df['datee']<=end_date)
+    amount_condition=(df['amount']>=start_amount) & (df['amount']<=end_amount)
     condition=key_condition & date_condition & amount_condition
     return df[condition]
 
@@ -254,6 +266,18 @@ app.layout=html.Div([
                                     dcc.Graph(
                                         id='freqgraph'
                                     )
+                                ]
+                            ),
+                             dcc.Tab(
+                                label='Similarity', 
+                                children=[
+                                    html.Div(   
+                                    id='sim_table_div',
+                                    children=[
+                
+                                        ]
+                                    )
+                                
                                 ]
                             )
                         ])
@@ -633,35 +657,30 @@ def update_time_and_frequency_graphs(n_clicks,key_1,key_2,start_date,end_date,am
     [Input('submit-button','n_clicks')],
     [State('input_1','value'),
      State('input_2','value'),
+     State('amount-slider','value'),
      State('datepicker','start_date'),
      State('datepicker','end_date')])
-def update_network(n_clicks,Account_1,Account_2,start_date,end_date):
+def update_network(n_clicks,Account_1,Account_2,amount_range,start_date,end_date):
     
     if ((Account_1 is None) or (Account_2 is None) or (start_date is None) or (end_date is None)):
         print('Preventing update of time and frequency graphs')
         raise PreventUpdate
-        
-    bank_data = df.copy()
     sd=datetime.strptime(start_date.split(' ')[0],'%Y-%m-%d').date()
     ed=datetime.strptime(end_date.split(' ')[0],'%Y-%m-%d').date()
-    granular_bank_data=bank_data[(bank_data['datee'] >= sd) & (bank_data['datee'] <= ed)]
-    sent_bank=granular_bank_data[granular_bank_data['originn']==Account_1]
-    recieved_bank=granular_bank_data[granular_bank_data['dest']==Account_1]
-    tot_bank=pd.concat([sent_bank,recieved_bank])
-    
+    granular_bank_data=df[(df['datee'] >= sd) & (df['datee'] <= ed) & (df['amount']>=amount_range[0]) & (df['amount']<=amount_range[1])]
+    tot_bank=filter_net(Account_1,sd,ed,amount_range[0],amount_range[1])
     adj_data = tot_bank
     if Account_1 != Account_2:
-        a=granular_bank_data[(granular_bank_data['originn']==Account_2) & (granular_bank_data['dest'] != Account_1)]
-        b=granular_bank_data[(granular_bank_data['dest']==Account_2) & (granular_bank_data['originn'] != Account_1)]
+        a_temp=filter_net(Account_2,sd,ed,amount_range[0],amount_range[1])
+        a=a_temp[(a_temp['originn']==Account_2) & (a_temp['dest'] != Account_1)]
+        b=a_temp[(a_temp['dest']==Account_2) & (a_temp['originn'] != Account_1)]
         adj_data=pd.concat([adj_data,a])
         adj_data=pd.concat([adj_data,b])
-
     for i in adj_data['originn'].unique():
         for j in adj_data['dest'].unique():
             if i != Account_1 and j != Account_1 and i != Account_2 and j != Account_2:
                 origin_i=granular_bank_data[(granular_bank_data['originn']== i) & (granular_bank_data['dest']== j)]
-                adj_data=pd.concat([adj_data,origin_i])
-    
+                adj_data=pd.concat([adj_data,origin_i])    
     two_edges=pd.DataFrame({'source': adj_data['originn'],'target':adj_data['dest']
                           ,'weight': adj_data['amount']
                           ,'color': ['green' if x<=100 else 'red' for x in adj_data['amount']]
@@ -728,38 +747,28 @@ var options = {
 """)
     pyvis_graph.save_graph(output_filename)
     return open(output_filename, 'r').read()
-
-# Update similarity of key_1 and key_2 based on outgoing and incoming edges
-from itertools import product
-@app.callback(Output('textArea','children'),
+######################## update similarity table #########################
+@app.callback(Output('sim_table_div','children'),
               [Input('submit-button','n_clicks')],
               [State('input_1','value'),
                State('input_2','value'),
+               State('amount-slider','value'),
                State('datepicker','start_date'),
                State('datepicker','end_date')])
-def update_output_div_similarity(n_clicks,Account_1,Account_2,start_date,end_date):
+def update_output_div_similaritytable(n_clicks,Account_1,Account_2,amount_range,start_date,end_date):
     
     if ((Account_1 is None) or (Account_2 is None) or (start_date is None) or (end_date is None)):
         print('Preventing update of time and frequency graphs')
         raise PreventUpdate
-        
-    bank_data = df.copy()
     sd=datetime.strptime(start_date.split(' ')[0],'%Y-%m-%d').date()
     ed=datetime.strptime(end_date.split(' ')[0],'%Y-%m-%d').date()
-    granular_bank_data=bank_data[(bank_data['datee'] >= sd) & (bank_data['datee'] <= ed)]
-    sent_bank=granular_bank_data[granular_bank_data['originn']==Account_1]
-    recieved_bank=granular_bank_data[granular_bank_data['dest']==Account_1]
-    tot_bank=pd.concat([sent_bank,recieved_bank])
-    
-    edges = pd.DataFrame({'source': tot_bank['originn'],'target':tot_bank['dest']
-                          ,'weight': tot_bank['amount']
-                          ,'color': ['g' if x<=200 else 'r' for x in tot_bank['amount']]
-                         })
+    granular_bank_data=df[(df['datee'] >= sd) & (df['datee'] <= ed) & (df['amount']>=amount_range[0]) & (df['amount']<=amount_range[1])]
+    tot_bank=filter_net(Account_1,sd,ed,amount_range[0],amount_range[1])
     adj_data = tot_bank
-
     if Account_1 != Account_2:
-        a=granular_bank_data[(granular_bank_data['originn']==Account_2) & (granular_bank_data['dest'] != Account_1)]
-        b=granular_bank_data[(granular_bank_data['dest']==Account_2) & (granular_bank_data['originn'] != Account_1)]
+        a_temp=filter_net(Account_2,sd,ed,amount_range[0],amount_range[1])
+        a=a_temp[(a_temp['originn']==Account_2) & (a_temp['dest'] != Account_1)]
+        b=a_temp[(a_temp['dest']==Account_2) & (a_temp['originn'] != Account_1)]
         adj_data=pd.concat([adj_data,a])
         adj_data=pd.concat([adj_data,b])
     for i in adj_data['originn'].unique():
@@ -767,7 +776,96 @@ def update_output_div_similarity(n_clicks,Account_1,Account_2,start_date,end_dat
             if i != Account_1 and j != Account_1 and i != Account_2 and j != Account_2:
                 origin_i=granular_bank_data[(granular_bank_data['originn']== i) & (granular_bank_data['dest']== j)]
                 adj_data=pd.concat([adj_data,origin_i])
+
+    two_edges=pd.DataFrame({'source': adj_data['originn'],'target':adj_data['dest']
+                          ,'weight': adj_data['amount']
+                          ,'color': ['green' if x<=100 else 'red' for x in adj_data['amount']]
+                         })
+    G_two_edge = nx.from_pandas_edgelist(two_edges,'source','target', edge_attr=['weight','color'],create_using=nx.MultiDiGraph()) 
+    sim_outgoing = nx.simrank_similarity(G_two_edge)
+    sim_incoming = simrank_similarity_Incoming(G_two_edge)
+    new_out={}
+    for i in sim_outgoing.keys():
+        for j in sim_outgoing.keys():
+            new_out[i +'_'+j]=sim_outgoing_two_nodes(sim_outgoing,i,j)
+    new_in={}
+    for i in sim_outgoing.keys():
+        for j in sim_outgoing.keys():
+            new_in[i +'_'+j]=sim_incoming_two_nodes(sim_incoming,i,j)
+    result_df=[]
+    result_df=pd.DataFrame(new_out.keys())
+    result_df['Accounts']=pd.DataFrame(new_out.keys())
+    result_df['sim_out']=pd.DataFrame(new_out.values())
+    result_df['sim_in']=pd.DataFrame(new_in.values())
+    result_df1=result_df[['Accounts','sim_out','sim_in']]
     
+    columns=[
+        {"name" : 'Accounts', "id" : 'Accounts'},
+        {"name" : 'sim_out', "id" :'sim_out'},
+        {"name" : 'sim_in', "id" : 'sim_in'}
+    ]
+    
+    data=result_df1.to_dict('records')
+
+
+    table=dash_table.DataTable(
+        columns=columns,
+        data=data,
+        editable=True,
+        filter_action="native",
+        sort_action="native",
+        sort_mode="multi",
+        column_selectable="single",
+        row_selectable="multi",
+        row_deletable=True,
+        selected_columns=[],
+        selected_rows=[],
+        style_header={'backgroundColor': 'rgb(30, 30, 30)',
+        'textAlign': 'left'},
+        style_table={
+        'maxHeight': '300px',
+        'overflowY': 'scroll'
+    },
+    style_cell={
+        'backgroundColor': 'rgb(50, 50, 50)',
+        'color': 'white',
+        'textAlign': 'left'
+    },
+
+
+    )
+    return table
+# Update similarity of key_1 and key_2 based on outgoing and incoming edges
+
+@app.callback(Output('textArea','children'),
+              [Input('submit-button','n_clicks')],
+              [State('input_1','value'),
+               State('input_2','value'),
+               State('amount-slider','value'),
+               State('datepicker','start_date'),
+               State('datepicker','end_date')])
+def update_output_div_similarity(n_clicks,Account_1,Account_2,amount_range,start_date,end_date):
+    
+    if ((Account_1 is None) or (Account_2 is None) or (start_date is None) or (end_date is None)):
+        print('Preventing update of time and frequency graphs')
+        raise PreventUpdate
+    sd=datetime.strptime(start_date.split(' ')[0],'%Y-%m-%d').date()
+    ed=datetime.strptime(end_date.split(' ')[0],'%Y-%m-%d').date()
+    granular_bank_data=df[(df['datee'] >= sd) & (df['datee'] <= ed) & (df['amount']>=amount_range[0]) & (df['amount']<=amount_range[1])]
+    tot_bank=filter_net(Account_1,sd,ed,amount_range[0],amount_range[1])
+    adj_data = tot_bank
+    if Account_1 != Account_2:
+        a_temp=filter_net(Account_2,sd,ed,amount_range[0],amount_range[1])
+        a=a_temp[(a_temp['originn']==Account_2) & (a_temp['dest'] != Account_1)]
+        b=a_temp[(a_temp['dest']==Account_2) & (a_temp['originn'] != Account_1)]
+        adj_data=pd.concat([adj_data,a])
+        adj_data=pd.concat([adj_data,b])
+    for i in adj_data['originn'].unique():
+        for j in adj_data['dest'].unique():
+            if i != Account_1 and j != Account_1 and i != Account_2 and j != Account_2:
+                origin_i=granular_bank_data[(granular_bank_data['originn']== i) & (granular_bank_data['dest']== j)]
+                adj_data=pd.concat([adj_data,origin_i])
+
     two_edges=pd.DataFrame({'source': adj_data['originn'],'target':adj_data['dest']
                           ,'weight': adj_data['amount']
                           ,'color': ['green' if x<=100 else 'red' for x in adj_data['amount']]

@@ -155,10 +155,12 @@ app.layout=html.Div([
             className="row",
             style={'height': '46px',
                    'margin-top': '10px',
-                   'margin-bottom': '10px'},
+                   'margin-bottom': '10px',
+                   'margin-left': '4px'},
             children=[
                 html.Div(
-                    className="col-1",
+                    #className="col-1",
+                    style={'width': '10vw'},
                     children=[
                         dcc.Input(
                             id='input_1',
@@ -169,7 +171,8 @@ app.layout=html.Div([
                     ]                        
                 ),
                 html.Div(
-                    className="col-1",
+                    #className="col-1",
+                    style={'width': '10vw'},
                     children=[
                         dcc.Input(
                          id='input_2',
@@ -179,7 +182,8 @@ app.layout=html.Div([
                     ]                        
                 ),
                 html.Div(
-                    className="col-4",
+                    #className="col-4",
+                    style={'width': '28vw'},
                     children=[
                         dcc.DatePickerRange(
                             id='datepicker',
@@ -191,7 +195,9 @@ app.layout=html.Div([
                     ]
                 ),
                 html.Div(
-                    className="col-3",
+                    #className="col-3",
+                    style={'padding-top': '12px',
+                        'width': '26vw'},
                     children=[
                         dcc.RangeSlider(
                             id='amount-slider',
@@ -199,10 +205,12 @@ app.layout=html.Div([
                         ),
                         html.Div(
                             className='row',
+                            style={'margin-top': '-24px'},
                             children=[
                                 html.Div(
                                     id='amount-slider-min-text',
-                                    style={'width':'50%','textAlign':'left'}
+                                    style={'width': '50%',
+                                    'textAlign': 'left'}
                                 ),
                                 html.Div(
                                     id='amount-slider-max-text',
@@ -212,26 +220,31 @@ app.layout=html.Div([
                         )
                     ]
                 ),
-                html.Div( # Probably need to change this to children / input / text
-                    className="col-1",
+                html.Div( # REJECT ME WHEN MERGING PLEASE ONLY IF OTHER CODE IS INPUT TEXT INSTEAD OF TEXTAREA
+                    #className="col-1",
                     id='textArea',
                     children=[  
                         dcc.Textarea( # todo: change this into DIV
                             placeholder='SimRank',
                             #value='Similarity',
-                            style={'width': '100%'
-                            }
+                            style={'width': '100%',
+                            'height': '46px',
+                            'text-align': 'center'}
                         )
                     ],
-                    style={'height': '46px'}
+                    style={'height': '46px',
+                        'width': '12vw'}
                 ),
                 html.Div(
-                    className="col-1",
+                    #className="col-1",
+                    style={'width': '10vw',
+                        'text-align': 'center'},
                     children=[
                         html.Button(
                             id='submit-button',
                             children='Submit',
-                            n_clicks=0
+                            n_clicks=0,
+                            style={'height': '46px'}
                         )
                     ]
                 ),
@@ -265,9 +278,11 @@ app.layout=html.Div([
         ),
         html.Div(
             className="row",
+            style={'height': '80vh'},
             children=[
                 html.Div(
-                    className='col-6',
+                    #className='col-6',
+                    style={'width': '50vw'},
                     children=[
                         html.Div(
                             children=[
@@ -283,14 +298,16 @@ app.layout=html.Div([
                     # style={'width': '100%','height':'100%'}
                 ),
                 html.Div(
-                    className='col-6',
+                    #className='col-6',
+                    style={'width': '50vw'},
                     children=[
                         dcc.Tabs([
                             dcc.Tab(
                                 label='Time (1)',
                                 children=[
                                     dcc.Graph(
-                                        id='timegraph'
+                                        id='timegraph',
+                                        style={'width': '100%'}
                                     )
                                 ]
                             ),
@@ -298,7 +315,8 @@ app.layout=html.Div([
                                 label='Time (2)',
                                 children=[
                                     dcc.Graph(
-                                        id='cumgraph'
+                                        id='cumgraph',
+                                        style={'width': '100%'}
                                     )
                                 ]
                             ),
@@ -306,7 +324,8 @@ app.layout=html.Div([
                                 label='Frequency', 
                                 children=[
                                     dcc.Graph(
-                                        id='freqgraph'
+                                        id='freqgraph',
+                                        style={'width': '100%'}
                                     )
                                 ]
                             ),
@@ -314,7 +333,8 @@ app.layout=html.Div([
                                 label='Similarity', 
                                 children=[
                                     dcc.Graph(
-                                        id='sim_table'
+                                        id='sim_table',
+                                        style={'width': '100%'}
                                     )
                                 ]
                             ),
@@ -323,6 +343,7 @@ app.layout=html.Div([
                                 children=[
                                     html.Div(
                                         id='stats_table_1_div',
+                                        style={'width': '100%'}
                                         # style={'width': '100%','height':'100%'}
                                     ),
                                     html.Div(

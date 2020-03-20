@@ -497,7 +497,7 @@ def update_intermediate_div(key_1,key_2,start_date,end_date,amount_range):
     
     df_key_1=filter_df(key_1,sd,ed,amount_range[0],amount_range[1]).sort_values('datee')   
     df_key_2=filter_df(key_2,sd,ed,amount_range[0],amount_range[1]).sort_values('datee')
-    df_key_1_2=df_key_1[(df_key_1['a_key']==key_2) | (df_key_1['b_key']==key_2)].sort_values('datee')
+    df_key_1_2=df_key_1[(df_key_1['originn']==key_2) | (df_key_1['dest']==key_2)].sort_values('datee')
     
     df_key_1['other_key']=np.where(df_key_1['a_key']==key_1,df_key_1['b_key'],df_key_1['a_key'])
     df_key_2['other_key']=np.where(df_key_2['a_key']==key_2,df_key_2['b_key'],df_key_2['a_key'])
@@ -518,9 +518,12 @@ def update_intermediate_div(key_1,key_2,start_date,end_date,amount_range):
     
     return json.dumps(datasets)
 
-    
+
+ # Update Stats Tab
 @app.callback(
-    Output('stats_table_1_div','children'),
+    [Output('stats_table_1_div','children'),
+     Output('stats_table_2_div','children'),
+     Output('stats_table_1_2_div','children')],
     [Input('submit-button','n_clicks')],
     [State('intermediate_div','children')])
 def update_stat_tables(n_clicks,jsonified_data):
@@ -528,37 +531,67 @@ def update_stat_tables(n_clicks,jsonified_data):
     # error checks
     if ((n_clicks is None) or (jsonified_data == [])):
         print('Returning dash.no_update')
-        return dash.no_update
+        raise PreventUpdate
     
     # if jsonified_data==[]: return dash.no_update
     
     # get variables from jsonidied_date
     datasets=json.loads(jsonified_data)
     df_key_1=pd.read_json(datasets['df_key_1'],orient='split')
+    df_key_2=pd.read_json(datasets['df_key_2'],orient='split')
+    df_key_1_2=pd.read_json(datasets['df_key_1_2'],orient='split')
+    
     key_1=datasets['key_1']
+    key_2=datasets['key_2']
     
     df_key_1_sent=df_key_1[df_key_1['originn']==key_1]
-    df_key_1_received=df_key_1[df_key_1['dest']==key_1]
+    df_key_2_sent=df_key_2[df_key_2['originn']==key_2]
+    df_key_1_2_sent=df_key_1_2[df_key_1_2['originn']==key_1]
     
+    df_key_1_received=df_key_1[df_key_1['dest']==key_1]
+    df_key_2_received=df_key_2[df_key_2['dest']==key_2]
+    df_key_1_2_received=df_key_1_2[df_key_1_2['dest']==key_1]
+      
     stats_df_key_1=pd.concat([
-        df_key_1_received['amount'].describe(),
-        df_key_1_sent['amount'].describe(),
-        df_key_1['amount_signed'].describe()],
+        df_key_1_received['amount'].describe(percentiles=[.5]),
+        df_key_1_sent['amount'].describe(percentiles=[.5]),
+        df_key_1['amount_signed'].describe(percentiles=[.5])],
         axis=1
     ).reset_index()
-    stats_df_key_1.columns=['index','Incoming','Outgoing','All']
     
-    columns=[
-        {"name" : key_1,"id" : 'index'},
+    stats_df_key_2=pd.concat([
+        df_key_2_received['amount'].describe(percentiles=[.5]),
+        df_key_2_sent['amount'].describe(percentiles=[.5]),
+        df_key_2['amount_signed'].describe(percentiles=[.5])],
+        axis=1
+    ).reset_index()
+    
+    stats_df_key_1_2=pd.concat([
+        df_key_1_2_received['amount'].describe(percentiles=[.5]),
+        df_key_1_2_sent['amount'].describe(percentiles=[.5]),
+        df_key_1_2['amount_signed'].describe(percentiles=[.5])],
+        axis=1
+    ).reset_index()
+    
+    stats_df_key_1.columns=['index','Incoming','Outgoing','All']
+    stats_df_key_2.columns=['index','Incoming','Outgoing','All']
+    stats_df_key_1_2.columns=['index','Incoming','Outgoing','All']
+    
+    columns=[[
+        {"name" : key,"id" : 'index'},
         {"name" : 'Incoming', "id" : 'Incoming'},
         {"name" : 'Outgoing', "id" :'Outgoing'},
         {"name" : 'All', "id" : 'All'}
-    ]
-    data=stats_df_key_1.round(2).to_dict('records')
+    ] for key in [key_1,key_2,key_1+' -> '+key_2]]
+
     
-    table=dash_table.DataTable(
-        columns=columns,
-        data=data,
+    data=[stats_df_key_1.round(2).to_dict('records'),
+          stats_df_key_2.round(2).to_dict('records'),
+          stats_df_key_1_2.round(2).to_dict('records')]
+
+    tables=[dash_table.DataTable(
+        columns=columns[i],
+        data=data[i],
         style_as_list_view=True,
         style_header={
             'backgroundColor': 'grey',
@@ -581,128 +614,13 @@ def update_stat_tables(n_clicks,jsonified_data):
                 'color': 'white',
             }
         ]
-    )
-
-    return table
+    ) for i in range(3)]
 
 
-@app.callback(
-    Output('cumgraph','figure'),
-    [Input('submit-button','n_clicks')],
-    [State('intermediate_div','children')])
-def update_cum_graphs(n_clicks,jsonified_data):
-    
-    # error checks
-    if ((n_clicks is None) or (jsonified_data == [])):
-        print('Returning dash.no_update')
-        return dash.no_update
-        
-    # get variables from jsonidied_data
-    datasets=json.loads(jsonified_data)
-    df_key_1=pd.read_json(datasets['df_key_1'],orient='split')
-    df_key_2=pd.read_json(datasets['df_key_2'],orient='split')
-    df_key_1_2=pd.read_json(datasets['df_key_1_2'],orient='split')
-    
-    key_1=datasets['key_1']
-    key_2=datasets['key_2']
-    
-    df_key_1['cum_amount']=df_key_1['amount_signed'].cumsum()
-    df_key_2['cum_amount']=df_key_2['amount_signed'].cumsum()
-    df_key_1_2['cum_amount']=df_key_1_2['amount_signed'].cumsum()
-    
-    # make subplots
-    fig = make_subplots(
-        rows=3,
-        cols=1,
-        shared_xaxes=True, 
-        vertical_spacing=0.02,
-        # subplot_titles=(key_1,key_2,key_1+' - '+key_2)
-    )
-    
-    # key_1
-    fig.add_trace(
-        go.Scatter(
-            x=df_key_1['datee'],
-            y=df_key_1['cum_amount'],
-            text=key_1,
-            mode='lines',
-            marker={
-                'size': 10,
-                'opacity': 0.25,
-                'line': {'width': 0.5, 'color': 'white'}
-            },
-            line={
-                # 'color':unique_account_colors[key_1] if key_1 in unique_account_colors else None
-            },
-            name='Cumulative Transactions'
-        ),     
-        row=1,
-        col=1
-    )
-    
-    # key_2
-    fig.add_trace(
-        go.Scatter(
-            x=df_key_2['datee'],
-            y=df_key_2['cum_amount'],
-            text=key_2,
-            mode='lines',
-            marker={
-                'size': 10,
-                'opacity': 0.25,
-                'line': {'width': 0.5, 'color': 'white'}
-            },
-            line={
-                # 'color':unique_account_colors[key_2] if key_2 in unique_account_colors else None
-            },
-            name='Cumulative Transactions'
-        ),
-        row=2,
-        col=1
-    )
-    
-    # key_1_2
-    fig.add_trace(
-        go.Scatter(
-            x=df_key_1_2['datee'],
-            y=df_key_1_2['cum_amount'],
-            text=key_1,
-            mode='lines',
-            marker={
-                'size': 10,
-                'opacity': 0.25,
-                'line': {'width': 0.5, 'color': 'white'}
-            },
-            line={
-                # 'color':unique_account_colors[key_1] if key_1 in unique_account_colors else None
-            },
-            name='Cumulative Transactions'
-        ),
-        row=3,
-        col=1
-    )
-    
-    # xaxis properties
-    fig.update_xaxes(title_text="Time", row=3, col=1)
-    
-    # yaxis properties
-    fig.update_yaxes(title_text="Amount", row=1, col=1)
-    fig.update_yaxes(title_text="Amount", row=2, col=1)
-    fig.update_yaxes(title_text="Amount", row=3, col=1)
-    
-    # layout
-    fig.update_layout(
-        autosize=False,
-        # width=800,
-        # height=800,      
-        margin={'l' : 0, 'r' : 0, 'b' : 0, 't' : 0, 'autoexpand' : True},
-        hovermode='closest',
-        showlegend=False
-    )
-
-    return fig
+    return tables[0],tables[1],tables[2]
 
 
+# Update Time (1) Tab
 @app.callback(
     Output('timegraph','figure'),
     [Input('submit-button','n_clicks')],
@@ -822,8 +740,127 @@ def update_time_graphs(n_clicks,jsonified_data):
     )
     
     return fig
-    
 
+
+# Update Time (2) Tab
+@app.callback(
+    Output('cumgraph','figure'),
+    [Input('submit-button','n_clicks')],
+    [State('intermediate_div','children')])
+def update_cum_graphs(n_clicks,jsonified_data):
+    
+    # error checks
+    if ((n_clicks is None) or (jsonified_data == [])):
+        print('Returning dash.no_update')
+        return dash.no_update
+        
+    # get variables from jsonidied_data
+    datasets=json.loads(jsonified_data)
+    df_key_1=pd.read_json(datasets['df_key_1'],orient='split')
+    df_key_2=pd.read_json(datasets['df_key_2'],orient='split')
+    df_key_1_2=pd.read_json(datasets['df_key_1_2'],orient='split')
+    
+    key_1=datasets['key_1']
+    key_2=datasets['key_2']
+    
+    df_key_1['cum_amount']=df_key_1['amount_signed'].cumsum()
+    df_key_2['cum_amount']=df_key_2['amount_signed'].cumsum()
+    df_key_1_2['cum_amount']=df_key_1_2['amount_signed'].cumsum()
+    
+    # make subplots
+    fig = make_subplots(
+        rows=3,
+        cols=1,
+        shared_xaxes=True, 
+        vertical_spacing=0.02,
+        # subplot_titles=(key_1,key_2,key_1+' - '+key_2)
+    )
+    
+    # key_1
+    fig.add_trace(
+        go.Scatter(
+            x=df_key_1['datee'],
+            y=df_key_1['cum_amount'],
+            text=key_1,
+            mode='lines',
+            marker={
+                'size': 10,
+                'opacity': 0.25,
+                'line': {'width': 0.5, 'color': 'white'}
+            },
+            line={
+                # 'color':unique_account_colors[key_1] if key_1 in unique_account_colors else None
+            },
+            name='Cumulative Transactions'
+        ),     
+        row=1,
+        col=1
+    )
+    
+    # key_2
+    fig.add_trace(
+        go.Scatter(
+            x=df_key_2['datee'],
+            y=df_key_2['cum_amount'],
+            text=key_2,
+            mode='lines',
+            marker={
+                'size': 10,
+                'opacity': 0.25,
+                'line': {'width': 0.5, 'color': 'white'}
+            },
+            line={
+                # 'color':unique_account_colors[key_2] if key_2 in unique_account_colors else None
+            },
+            name='Cumulative Transactions'
+        ),
+        row=2,
+        col=1
+    )
+    
+    # key_1_2
+    fig.add_trace(
+        go.Scatter(
+            x=df_key_1_2['datee'],
+            y=df_key_1_2['cum_amount'],
+            text=key_1,
+            mode='lines',
+            marker={
+                'size': 10,
+                'opacity': 0.25,
+                'line': {'width': 0.5, 'color': 'white'}
+            },
+            line={
+                # 'color':unique_account_colors[key_1] if key_1 in unique_account_colors else None
+            },
+            name='Cumulative Transactions'
+        ),
+        row=3,
+        col=1
+    )
+    
+    # xaxis properties
+    fig.update_xaxes(title_text="Time", row=3, col=1)
+    
+    # yaxis properties
+    fig.update_yaxes(title_text="Amount", row=1, col=1)
+    fig.update_yaxes(title_text="Amount", row=2, col=1)
+    fig.update_yaxes(title_text="Amount", row=3, col=1)
+    
+    # layout
+    fig.update_layout(
+        autosize=False,
+        # width=800,
+        # height=800,      
+        margin={'l' : 0, 'r' : 0, 'b' : 0, 't' : 0, 'autoexpand' : True},
+        hovermode='closest',
+        showlegend=False
+    )
+
+    return fig
+
+
+# Update Frequency Tab
 @app.callback(
     Output('freqgraph','figure'),
     [Input('submit-button','n_clicks')],
@@ -1015,7 +1052,9 @@ var options = {
 """)
     pyvis_graph.save_graph(output_filename)
     return open(output_filename, 'r').read()
-######################## update similarity table #########################
+
+
+# Update Similarity Tab
 @app.callback(Output('sim_table_div','children'),
               [Input('submit-button','n_clicks')],
               [State('input_1','value'),
@@ -1143,4 +1182,4 @@ def update_output_div_similarity(n_clicks,Account_1,Account_2,amount_range,start
 
 ### Run App
 if __name__ == '__main__':
-    app.run_server(debug=False)
+    app.run_server(debug=True)

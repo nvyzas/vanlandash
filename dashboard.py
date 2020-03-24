@@ -143,16 +143,9 @@ colors = {
 
 app.layout=html.Div([
         html.Div(
-            className="col-4",
-            id='heading',
             children=[
-                html.H1(
-                    children='Van Lanschot Bank', 
-                    style={
-                        'textAlign': 'right',
-                        'color': colors['text']
-                    }
-                )
+            html.Div(html.Img(src=app.get_asset_url('download.png'),style={ 'height': '100%', 'width':'60%'  }), style={'display': 'inline-block', 'height': '60px'}),
+            html.Div(html.Img(src=app.get_asset_url('jads-logo.png'),style={ 'height': '100%', 'width':'50%','margin-right':'0px' }), style={'display': 'inline-block', 'height': '60px','textAlign':'right','width':'40%', })
             ]
         ),
         html.Div(

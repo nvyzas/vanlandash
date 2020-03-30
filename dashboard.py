@@ -303,20 +303,24 @@ app.layout=html.Div([
                 ),
                 html.Div(
                     #className='col-6',
-                    style={'width': '50vw'},
+                    style={'width': '50vw',
+                        'display': 'inline-block'},
                     children=[
                         dcc.Tabs([
                             dcc.Tab(
                                 label='Time (1)',
+                                #style={'height': '5vh'},
                                 children=[
                                     dcc.Graph(
                                         id='timegraph',
-                                        style={'width': '100%'}
+                                        style={'width': '100%',
+                                            'display': 'inline-block'} #'display': 'inline-block'
                                     )
                                 ]
                             ),
                             dcc.Tab(
                                 label='Time (2)',
+                                #style={'height': '5vh'},
                                 children=[
                                     dcc.Graph(
                                         id='cumgraph',
@@ -326,19 +330,27 @@ app.layout=html.Div([
                             ),
                             dcc.Tab(
                                 label='Frequency', 
+                                #style={'height': '5vh'},
                                 children=[
                                     dcc.Graph(
                                         id='freqgraph',
-                                        style={'width': '100%'}
+                                        style={'width': '100%',
+                                            'display': 'inline-block'}
                                     )
                                 ]
                             ),
                              dcc.Tab(
                                 label='Similarity', 
+                                #style={'height': '5vh'},
                                 children=[
                                     html.Div(   
-                                    id='sim_table_div',
-                                    children=[
+                                        id='sim_table_div',
+                                        style={#'height': '70vh',
+                                            'width': '50vw'
+                                            #'display': 'inline-block',
+                                            #'margin-left': '1px',
+                                            },
+                                        children=[
                 
                                         ]
                                     )
@@ -346,19 +358,22 @@ app.layout=html.Div([
                                 ]
                             ),
                             dcc.Tab(
-                                label='Stats', 
+                                label='Stats',
+                                #style={'height': '5vh'},
                                 children=[
                                     html.Div(
                                         id='stats_table_1_div',
-                                        style={'width': '100%'}
+                                        style={'width': '50vw'}
                                         # style={'width': '100%','height':'100%'}
                                     ),
                                     html.Div(
                                         id='stats_table_2_div',
+                                        style={'width': '50vw'}
                                         # style={'width': '100%','height':'100%'}
                                     ),
                                     html.Div(
                                         id='stats_table_1_2_div',
+                                        style={'width': '50vw'}
                                         # style={'width': '100%','height':'100%'}
                                     )
                                 ]
@@ -1125,9 +1140,19 @@ def update_output_div_similaritytable(n_clicks,Account_1,Account_2,amount_range,
         style_header={'backgroundColor': 'rgb(30, 30, 30)',
         'textAlign': 'left'},
         style_table={
-        'maxHeight': '300px',
-        'overflowY': 'scroll'
+        'width': '100%',
+        #'height': '70vh',
+        'maxHeight': '70vh',
+        #'overflowY': 'hidden'
     },
+    fixed_rows={ 'headers': True, 'data': 0 },
+    style_cell_conditional=[
+        {'if': {'column_id': 'Accounts'},
+         'width': '50%'},
+        {'if': {'column_id': 'sim_out'},
+         'width': '25%'},
+        {'if': {'column_id': 'sim_in'},
+         'width': '25%'}],
     style_cell={
         'backgroundColor': 'rgb(50, 50, 50)',
         'color': 'white',

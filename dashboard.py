@@ -143,16 +143,9 @@ colors = {
 
 app.layout=html.Div([
         html.Div(
-            className="col-4",
-            id='heading',
             children=[
-                html.H1(
-                    children='Van Lanschot Bank', 
-                    style={
-                        'textAlign': 'right',
-                        'color': colors['text']
-                    }
-                )
+            html.Div(html.Img(src=app.get_asset_url('download.png'),style={ 'height': '100%', 'width':'60%'  }), style={'display': 'inline-block', 'height': '60px'}),
+            html.Div(html.Img(src=app.get_asset_url('jads-logo.png'),style={ 'height': '100%', 'width':'50%','margin-right':'0px' }), style={'display': 'inline-block', 'height': '60px','textAlign':'right','width':'40%', })
             ]
         ),
         html.Div(
@@ -607,28 +600,21 @@ def update_stat_tables(n_clicks,jsonified_data):
     tables=[dash_table.DataTable(
         columns=columns[i],
         data=data[i],
-        style_as_list_view=True,
+        
         style_header={
-            'backgroundColor': 'grey',
-            'color':'white',
-            'fontWeight': 'bold'
+            'backgroundColor': 'rgb(30, 30, 30)',
+            'textAlign': 'left'
         },
-        style_data_conditional=[
-            {
-                'if': {
-                    'column_id': 'Incoming',
-                },
-                'backgroundColor': '#5bc0de',
-                'color': 'white',
-            },
-            {
-                'if': {
-                    'column_id': 'Outgoing',
-                },
-                'backgroundColor': '#0275d8',
-                'color': 'white',
-            }
-        ]
+        style_table={
+            'maxHeight': '300px',
+            'overflowY': 'scroll'
+        },
+        style_cell={
+            'backgroundColor': 'rgb(50, 50, 50)',
+            'color': 'white',
+            'textAlign': 'left'
+        },
+
     ) for i in range(3)]
 
 

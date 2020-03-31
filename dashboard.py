@@ -144,8 +144,8 @@ colors = {
 app.layout=html.Div([
         html.Div(
             children=[
-            html.Div(html.Img(src=app.get_asset_url('download.png'),style={ 'height': '100%', 'width':'60%'  }), style={'display': 'inline-block', 'height': '60px'}),
-            html.Div(html.Img(src=app.get_asset_url('jads-logo.png'),style={ 'height': '100%', 'width':'50%','margin-right':'0px' }), style={'display': 'inline-block', 'height': '60px','textAlign':'right','width':'40%', })
+            html.Div(html.Img(src=app.get_asset_url('download.png'),style={ 'height': '60px', 'width':'200px', 'display': 'inline-block'}),
+            html.Div(html.Img(src=app.get_asset_url('jads-logo.png'),style={'width': '161px', 'height': '60px', 'display': 'inline-block', 'textAlign':'right'})
             ]
         ),
         html.Div(
@@ -614,6 +614,13 @@ def update_stat_tables(n_clicks,jsonified_data):
             'color': 'white',
             'textAlign': 'left'
         },
+        style_cell_conditional=[
+        {'if': {'column_id': 'Incoming'},
+         'width': '20%'},
+        {'if': {'column_id': 'Outgoing'},
+         'width': '20%'},
+        {'if': {'column_id': 'All'},
+         'width': '20%'}]
 
     ) for i in range(3)]
 
